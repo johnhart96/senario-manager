@@ -96,7 +96,7 @@ const names = { 'carl@bright.local': 'Carl Customer', 'sam@co.local': 'Sam Sales
   store.setSettings({ ...store.settings, openai: { apiKey: 'x', model: 'm' },
     mail: { ...store.settings.mail, host: '127.0.0.1', smtpPort: 2588, smtpSecurity: 'none' },
     listener: { ...store.settings.listener, bindAddress: '127.0.0.1', port: 2589, offerStartTls: false },
-    scenario: { ...store.settings.scenario, replyDelayMinSec: 0, replyDelayMaxSec: 0, followUpEnabled: false, minIntervalMin: 600, maxIntervalMin: 600 } });
+    scenario: { ...store.settings.scenario, oooChance: 0, backgroundEnabled: false, replyDelayMinSec: 0, replyDelayMaxSec: 0, followUpEnabled: false, minIntervalMin: 600, maxIntervalMin: 600 } });
   assert.strictEqual(store.settings.scenario.emailFormat, 'html', 'HTML is the default');
   store.setCompany({ name: 'Co', domain: 'co.local', description: 'd', employees: [{ name: 'Ann Accounts', email: 'ann@co.local', role: 'Accounts' }] });
   store.setCustomers([{ name: 'Carl Customer', email: 'carl@bright.local', organisation: 'Bright', role: 'Buyer' }]);

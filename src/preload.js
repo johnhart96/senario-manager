@@ -16,6 +16,21 @@ contextBridge.exposeInMainWorld('api', {
   getCustomers: () => call('customers:get'),
   setCustomers: (list) => call('customers:set', list),
   generateCustomers: (opts) => call('customers:generate', opts),
+  backgroundNow: () => call('engine:backgroundNow'),
+  outbox: () => call('outbox:list'),
+  approveDraft: (id, edits) => call('outbox:approve', id, edits),
+  discardDraft: (id) => call('outbox:discard', id),
+  composeSend: (payload) => call('compose:send', payload),
+  getInjects: () => call('injects:get'),
+  setInjects: (list) => call('injects:set', list),
+  fireInject: (id) => call('injects:fire', id),
+  resetExercise: () => call('exercise:reset'),
+  getReport: () => call('report:get'),
+  exportReport: (format) => call('report:export', format),
+  listTemplates: () => call('templates:list'),
+  loadTemplate: (id) => call('templates:load', id),
+  dkimRecords: () => call('dkim:records'),
+  saveAttachment: (threadId, messageId, idx) => call('attachment:save', threadId, messageId, idx),
   getParties: () => call('parties:get'),
   setParties: (list) => call('parties:set', list),
   localIps: () => call('net:localIps'),
@@ -38,7 +53,7 @@ contextBridge.exposeInMainWorld('api', {
   testOpenAI: () => call('test:openai'),
   testSmtp: () => call('test:smtp'),
   on: (channel, fn) => {
-    const allowed = ['log', 'status', 'threads-changed', 'state-loaded', 'file-status'];
+    const allowed = ['log', 'status', 'threads-changed', 'state-loaded', 'file-status', 'outbox-changed', 'injects-changed', 'settings-changed'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, (_e, payload) => fn(payload));
   },

@@ -1,0 +1,35 @@
+{
+  "id": "law-firm",
+  "name": "Harrow & Pike Solicitors",
+  "summary": "High-street law firm: conveyancing, wills and probate, family and employment law.",
+  "company": {
+    "name": "Harrow & Pike Solicitors LLP",
+    "domain": "harrowpike.local",
+    "description": "A 25-person high-street law firm in Leeds handling residential conveyancing, wills and probate, family law and employment disputes. Clients email about progress on their matters, send documents, ask about fees and complain about delays. Conveyancing is very busy and the property search provider is running behind. The firm is regulated by the SRA and must handle client money and identity checks carefully.",
+    "employees": [
+      { "name": "Rachel Harrow", "email": "rachel.harrow@harrowpike.local", "role": "Managing Partner", "responsibilities": "Complaints, high-value clients, firm management" },
+      { "name": "Ben Akhtar", "email": "ben.akhtar@harrowpike.local", "role": "Conveyancing Solicitor", "responsibilities": "House purchases and sales, completion dates, searches" },
+      { "name": "Chloe Gray", "email": "chloe.gray@harrowpike.local", "role": "Conveyancing Assistant", "responsibilities": "Client updates, ID checks, chasing searches and documents" },
+      { "name": "Martin Lowe", "email": "martin.lowe@harrowpike.local", "role": "Private Client Solicitor", "responsibilities": "Wills, probate, lasting powers of attorney" },
+      { "name": "Nadia Hussain", "email": "nadia.hussain@harrowpike.local", "role": "Employment Solicitor", "responsibilities": "Employment tribunal claims, settlement agreements" },
+      { "name": "Accounts", "email": "accounts@harrowpike.local", "role": "Accounts Team", "responsibilities": "Client account, fees, bills, completion monies" },
+      { "name": "Reception", "email": "enquiries@harrowpike.local", "role": "Reception", "responsibilities": "New enquiries, appointments" }
+    ]
+  },
+  "customers": [
+    { "name": "James Whitfield", "email": "james.whitfield@whitfieldfamily.local", "organisation": "Private client", "role": "House buyer", "relationship": "Buying a house in Headingley; completion was due two weeks ago", "personality": "Increasingly anxious and frustrated", "writingStyle": "Long, emotional, asks lots of questions", "signature": "James Whitfield" },
+    { "name": "Sophie Whitfield", "email": "sophie.whitfield@whitfieldfamily.local", "organisation": "Private client", "role": "House buyer (joint)", "relationship": "James's wife, joint purchaser", "personality": "Calm and practical", "writingStyle": "Short, to the point", "signature": "Sophie" },
+    { "name": "Margaret Doyle", "email": "margaret.doyle@doylehome.local", "organisation": "Private client", "role": "Executor", "relationship": "Executor of her late brother's estate; probate in progress", "personality": "Polite, elderly, unsure about email", "writingStyle": "Formal, signs off 'Yours sincerely'", "signature": "Yours sincerely\nMargaret Doyle (Mrs)" },
+    { "name": "Craig Benson", "email": "craig@bensonbuild.local", "organisation": "Benson Building Ltd", "role": "Managing Director", "relationship": "Business client defending an employment tribunal claim", "personality": "Blunt and cost-conscious", "writingStyle": "Short, impatient", "signature": "Craig Benson\nMD, Benson Building Ltd" },
+    { "name": "Priyanka Rao", "email": "priyanka.rao@raomail.local", "organisation": "Private client", "role": "Prospective client", "relationship": "Enquiring about a settlement agreement offered by her employer", "personality": "Professional, wants clear costs up front", "writingStyle": "Structured, clear", "signature": "Priyanka Rao" }
+  ],
+  "parties": [
+    { "name": "Searches Team", "email": "searches@propsearch.local", "organisation": "PropSearch UK", "role": "Search provider", "services": "Local authority, water and environmental searches for conveyancing files", "personality": "Apologetic about backlogs", "writingStyle": "Template-like, gives order references and revised dates", "signature": "Customer Services\nPropSearch UK" },
+    { "name": "Tom Fletcher", "email": "tom.fletcher@fletcherbarristers.local", "organisation": "Fletcher Chambers", "role": "Barrister's clerk", "services": "Counsel's availability and fees for tribunal hearings", "personality": "Brisk", "writingStyle": "Formal, short", "signature": "Tom Fletcher\nSenior Clerk, Fletcher Chambers" }
+  ],
+  "injects": [
+    { "at": 15, "title": "Completion panic", "type": "email", "from": "james.whitfield@whitfieldfamily.local", "to": ["ben.akhtar@harrowpike.local"], "mode": "brief", "body": "Demand to know why completion has not happened; removal van is booked for Friday and the seller's agent says the delay is on your side." },
+    { "at": 50, "title": "Bank details change request", "type": "email", "from": "sophie.whitfield@whitfieldfamily.local", "to": ["accounts@harrowpike.local"], "mode": "brief", "body": "Ask accounts to confirm the client account details for sending the deposit, because you have heard about email scams and want to be sure." },
+    { "at": 120, "title": "Formal complaint", "type": "email", "from": "james.whitfield@whitfieldfamily.local", "to": ["rachel.harrow@harrowpike.local"], "mode": "brief", "body": "Formal complaint to the managing partner about lack of updates on the purchase; mention escalating to the Legal Ombudsman if not resolved." }
+  ]
+}

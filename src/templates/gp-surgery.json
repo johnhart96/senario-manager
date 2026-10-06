@@ -1,0 +1,32 @@
+{
+  "id": "gp-surgery",
+  "name": "Greenbank Medical Practice",
+  "summary": "GP surgery: patients, care homes, pharmacies and NHS partners.",
+  "company": {
+    "name": "Greenbank Medical Practice",
+    "domain": "greenbankmedical.local",
+    "description": "A GP practice in Bristol with 11,000 registered patients, 6 GPs, nurses and an admin team. The practice receives email from patients (repeat prescriptions, test results, appointment problems, sick notes), local care homes, community pharmacies and NHS partner organisations. Clinical questions must not be answered over email by admin staff; urgent symptoms must be directed to 999 or NHS 111. The phone system was upgraded last week and patients are complaining about queues.",
+    "employees": [
+      { "name": "Janet Price", "email": "janet.price@greenbankmedical.local", "role": "Practice Manager", "responsibilities": "Complaints, contracts, staffing, IT and phone system" },
+      { "name": "Reception Team", "email": "reception@greenbankmedical.local", "role": "Reception", "responsibilities": "Appointments, registrations, general patient enquiries" },
+      { "name": "Prescriptions Team", "email": "prescriptions@greenbankmedical.local", "role": "Prescription Clerks", "responsibilities": "Repeat prescriptions, pharmacy queries" },
+      { "name": "Dr Amir Khalid", "email": "amir.khalid@greenbankmedical.local", "role": "GP Partner", "responsibilities": "Clinical lead, care home ward rounds" },
+      { "name": "Sam Ellis", "email": "sam.ellis@greenbankmedical.local", "role": "Secretary", "responsibilities": "Referrals, medical reports, insurance forms" }
+    ]
+  },
+  "customers": [
+    { "name": "Linda Carter", "email": "linda.carter@carterhome.local", "organisation": "Patient", "role": "Patient", "relationship": "Registered for 20 years, on several repeat medications", "personality": "Polite but frustrated by the new phone system", "writingStyle": "Chatty, explains at length", "signature": "Linda Carter" },
+    { "name": "Mark Reynolds", "email": "mark.reynolds@mr-mail.local", "organisation": "Patient", "role": "Patient", "relationship": "Needs a fit note and a medical report for his employer", "personality": "Direct, impatient", "writingStyle": "Short", "signature": "Mark" },
+    { "name": "Grace Obi", "email": "manager@oakfieldcare.local", "organisation": "Oakfield Care Home", "role": "Care Home Manager", "relationship": "30-bed care home; the practice provides weekly ward rounds", "personality": "Professional and caring", "writingStyle": "Clear, lists residents by initials", "signature": "Grace Obi RN\nRegistered Manager\nOakfield Care Home" },
+    { "name": "Paul Stevens", "email": "paul@stevenspharmacy.local", "organisation": "Stevens Pharmacy", "role": "Pharmacist", "relationship": "Local pharmacy dispensing most of the practice's prescriptions", "personality": "Helpful, busy", "writingStyle": "Brief, clinical abbreviations", "signature": "Paul Stevens MPharm\nStevens Pharmacy" }
+  ],
+  "parties": [
+    { "name": "Phone Support", "email": "support@clearvoicetelecom.local", "organisation": "ClearVoice Telecom", "role": "Telephony supplier", "services": "Installed and supports the practice's new cloud phone system and call queues", "personality": "Upbeat, slightly defensive", "writingStyle": "Ticket references, step-by-step", "signature": "ClearVoice Support\nTicket desk" },
+    { "name": "Facilities", "email": "facilities@cleanbristol.local", "organisation": "CleanBristol Services", "role": "Cleaning contractor", "services": "Daily cleaning and clinical waste collection", "personality": "Friendly", "writingStyle": "Informal", "signature": "Facilities Team\nCleanBristol" }
+  ],
+  "injects": [
+    { "at": 15, "title": "Medication running out", "type": "email", "from": "linda.carter@carterhome.local", "to": ["prescriptions@greenbankmedical.local"], "mode": "brief", "body": "Your repeat prescription request from last week has not reached the pharmacy and you have two days of blood pressure tablets left." },
+    { "at": 45, "title": "Care home concern", "type": "email", "from": "manager@oakfieldcare.local", "to": ["amir.khalid@greenbankmedical.local"], "mode": "brief", "body": "A resident (initials D.M.) has been more confused since starting a new medication; ask whether the GP can review at the ward round or sooner." },
+    { "at": 90, "title": "Phone system complaint", "type": "email", "from": "mark.reynolds@mr-mail.local", "to": ["janet.price@greenbankmedical.local"], "mode": "brief", "body": "Complain that you spent 50 minutes in the phone queue and were cut off twice; say this is unacceptable." }
+  ]
+}

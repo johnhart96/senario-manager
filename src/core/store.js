@@ -25,6 +25,7 @@ const DEFAULT_SETTINGS = {
     smtpAuth: false,
     username: '',
     password: '',
+    dkim: false, // sign customer/party mail with per-domain DKIM keys
   },
   // Inbound: the scenario mail server delivers replies for customer domains here.
   listener: {
@@ -49,6 +50,13 @@ const DEFAULT_SETTINGS = {
     followUpMaxHours: 24, // …up to this long (scenario time)
     followUpMax: 2, // follow-ups per unanswered email
     partyFollowUps: false, // external parties chase their own unanswered questions
+    reviewBeforeSend: false, // hold AI-written emails in the Outbox until approved
+    allowDocuments: true, // customers/parties may attach PDF, Word or Excel documents
+    allowMeetings: true, // customers/parties may send meeting invitations
+    oooChance: 0.03, // chance a customer is away and auto-replies first
+    backgroundEnabled: true, // newsletters and automated notifications
+    backgroundMinMin: 45,
+    backgroundMaxMin: 180,
     pace: 1, // 1 = real business time; e.g. 60 = an hour passes in a minute
   },
 };
@@ -74,6 +82,10 @@ const DEFAULT_DATA = {
   sentIds: {}, // Message-IDs we generated
   processedIds: {}, // inbound Message-IDs already handled
   pending: [], // scheduled customer replies, survive restarts
+  outbox: [], // drafts waiting for review (when review is on)
+  injects: [], // scripted exercise events
+  exercise: { elapsedMs: 0, runningSince: null, startedAt: null }, // exercise clock (scenario time)
+  dkimKeys: {}, // domain -> { selector, privateKey, publicKey }
   log: [], // activity log: { time, level, message }
   // App-level state, never written into .senario files.
   appState: { currentFile: null, includeSecrets: false, autoSave: true },
@@ -116,6 +128,7 @@ class Store {
       // first run or unreadable file: start fresh
     }
     const data = deepMerge(DEFAULT_DATA, raw);
+    if (data.exercise) data.exercise.runningSince = null;
     for (const [a, b] of SECRET_PATHS) {
       const v = data.settings[a][b];
       if (typeof v === 'string' && v.startsWith('enc:')) {
@@ -211,6 +224,7 @@ class Store {
     this.data.sentIds = {};
     this.data.processedIds = {};
     this.data.pending = [];
+    this.data.outbox = [];
     this.save();
   }
 }

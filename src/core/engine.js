@@ -6,9 +6,12 @@ const mail = require('./mail');
 const ai = require('./ai');
 const { extractAttachments } = require('./attachments');
 const clock = require('./clock');
-const { compose } = require('./compose');
+const { compose, mailHeaders, styleFor, rfc2822 } = require('./compose');
+const documents = require('./documents');
+const calendar = require('./calendar');
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const chance = (p) => Math.random() < p;
 const randBetween = (a, b) => a + Math.random() * Math.max(0, b - a);
 const lc = (s) => String(s || '').trim().toLowerCase();
 const domainOf = (email) => lc(email).split('@')[1] || '';
@@ -46,18 +49,19 @@ function fmtWait(ms) {
   return `~${Math.round(h / 24)} days`;
 }
 
-const baseSubject = (s) => String(s || '').replace(/^\s*((re|fw|fwd|aw)\s*:\s*)+/i, '').trim();
+const baseSubject = (s) => String(s || '').replace(/^\s*((re|fw|fwd|aw|accepted|declined|tentative)\s*:\s*)+/i, '').trim();
 
 class Engine extends EventEmitter {
   constructor(store) {
     super();
     this.store = store;
     this.running = false;
-    this.genTimer = null;
+    this.timers = { event: null, background: null, injects: null };
+    this.nextEventAt = null;
+    this.nextBackgroundAt = null;
     this.replyTimers = new Map();
     this.listener = null;
     this.listenerError = null;
-    this.nextEventAt = null;
   }
 
   // ---------- helpers ----------
@@ -72,6 +76,10 @@ class Engine extends EventEmitter {
 
   get company() {
     return this.store.company;
+  }
+
+  get data() {
+    return this.store.data;
   }
 
   employees() {
@@ -95,7 +103,12 @@ class Engine extends EventEmitter {
     return map;
   }
 
-  // Customers may only ever email addresses inside the scenario company.
+  // Other people at the same organisation (same email domain).
+  colleaguesOf(contact) {
+    const d = domainOf(contact.email);
+    return [...this.contactMap().values()].filter((c) => domainOf(c.email) === d && lc(c.email) !== lc(contact.email));
+  }
+
   companyDomains() {
     const set = new Set([lc(this.company.domain)]);
     for (const e of this.employees()) set.add(domainOf(e.email));
@@ -115,8 +128,28 @@ class Engine extends EventEmitter {
     return clock.validYear(this.company.operatingYear);
   }
 
+  scenarioNow() {
+    return clock.toScenario(new Date(), this.year);
+  }
+
   nowText() {
     return clock.formatScenario(new Date(), this.year);
+  }
+
+  aiCompany() {
+    return { ...this.company, employees: this.employees() };
+  }
+
+  // Add a dated note to a customer's or party's memory of the company.
+  remember(email, note) {
+    const text = String(note || '').trim();
+    if (!text) return;
+    const list = [...(this.store.customers || []), ...(this.store.parties || [])];
+    const c = list.find((x) => lc(x.email) === lc(email));
+    if (!c) return;
+    const when = this.scenarioNow().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    c.memory = [...(c.memory || []), `${when}: ${text.slice(0, 200)}`].slice(-10);
+    this.store.save();
   }
 
   status() {
@@ -124,14 +157,19 @@ class Engine extends EventEmitter {
     return {
       running: this.running,
       nextEventAt: this.nextEventAt,
-      pendingReplies: (this.store.data.pending || []).length,
-      threads: Object.keys(this.store.data.threads).length,
+      nextBackgroundAt: this.nextBackgroundAt,
+      pendingReplies: (this.data.pending || []).length,
+      outbox: (this.data.outbox || []).length,
+      threads: Object.keys(this.data.threads).length,
       listening: this.listener ? `${l.bindAddress}:${l.port}` : null,
       listenerError: this.listenerError || null,
       allowedSources: this.listener ? this.listener.allowed : [],
       pace: this.pace,
       operatingYear: this.year,
       clockOffsetMs: clock.offsetMs(this.year),
+      exerciseMs: this.exerciseElapsed(),
+      exerciseRunning: !!this.data.exercise.runningSince,
+      injectsPending: (this.data.injects || []).filter((i) => i.status === 'pending').length,
     };
   }
 
@@ -193,19 +231,32 @@ class Engine extends EventEmitter {
     this.validate();
     await this.openListener();
     this.running = true;
+    const ex = this.data.exercise;
+    ex.runningSince = Date.now();
+    if (!ex.startedAt) ex.startedAt = new Date().toISOString();
+    this.store.save();
     this.log('info', `Scenario started. Sending via ${mail.serverHost(this.settings.mail)}:${this.settings.mail.smtpPort}`);
     this.scheduleNextEvent();
+    this.scheduleBackground();
+    this.timers.injects = setInterval(() => this.checkInjects(), 2000);
     this.resumePendingReplies();
+    this.checkInjects();
     this.emitStatus();
   }
 
   async stop() {
     if (!this.running) return;
+    this.foldExercise();
     this.running = false;
-    clearTimeout(this.genTimer);
+    this.data.exercise.runningSince = null;
+    clearTimeout(this.timers.event);
+    clearTimeout(this.timers.background);
+    clearInterval(this.timers.injects);
     for (const t of this.replyTimers.values()) clearTimeout(t);
     this.replyTimers.clear();
     this.nextEventAt = null;
+    this.nextBackgroundAt = null;
+    this.store.save();
     this.log('info', 'Scenario stopped. The listener stays up; replies received now are answered on next start.');
     this.emitStatus();
   }
@@ -241,22 +292,70 @@ class Engine extends EventEmitter {
     return d.getTime() + Math.random() * 90 * 60000;
   }
 
+  // ---------- exercise clock ----------
+  // Scenario time elapsed since the exercise started: counts only while running and
+  // runs faster at higher pace. Injects are scheduled against it, and every message
+  // records it so the report can measure response times in scenario time.
+
+  exerciseElapsed() {
+    const ex = this.data.exercise;
+    return ex.elapsedMs + (ex.runningSince ? (Date.now() - ex.runningSince) * this.pace : 0);
+  }
+
+  foldExercise() {
+    const ex = this.data.exercise;
+    ex.elapsedMs = this.exerciseElapsed();
+    ex.runningSince = this.running ? Date.now() : null;
+  }
+
+  resetExercise() {
+    this.data.exercise = { elapsedMs: 0, runningSince: this.running ? Date.now() : null, startedAt: this.running ? new Date().toISOString() : null };
+    for (const i of this.data.injects || []) {
+      i.status = 'pending';
+      delete i.firedAt;
+      delete i.firedAtMs;
+      delete i.error;
+    }
+    this.store.save();
+    this.log('info', 'Exercise clock reset to T+0:00. All injects are pending again.');
+    this.emit('injects-changed');
+    this.emitStatus();
+  }
+
+  // ---------- timers: new customer emails and background mail ----------
+
   scheduleNextEvent() {
     if (!this.running) return;
     const s = this.settings.scenario;
     const mins = randBetween(Number(s.minIntervalMin) || 1, Number(s.maxIntervalMin) || 1);
-    this.armNextEvent((mins * 60000) / this.pace);
+    this.armTimer('event', (mins * 60000) / this.pace);
   }
 
-  armNextEvent(ms) {
-    clearTimeout(this.genTimer);
+  scheduleBackground() {
+    const s = this.settings.scenario;
+    if (!this.running || !s.backgroundEnabled) {
+      clearTimeout(this.timers.background);
+      this.nextBackgroundAt = null;
+      return;
+    }
+    const mins = randBetween(Number(s.backgroundMinMin) || 30, Number(s.backgroundMaxMin) || 120);
+    this.armTimer('background', (mins * 60000) / this.pace);
+  }
+
+  armTimer(name, ms) {
+    clearTimeout(this.timers[name]);
     ms = Math.max(5000, ms);
-    this.nextEventAt = new Date(Date.now() + ms).toISOString();
-    this.genTimer = setTimeout(async () => {
-      if (this.inWorkingHours()) {
-        await this.generateEvent().catch((e) => this.log('error', 'Generate failed: ' + e.message));
+    const at = new Date(Date.now() + ms).toISOString();
+    if (name === 'event') this.nextEventAt = at;
+    else this.nextBackgroundAt = at;
+    this.timers[name] = setTimeout(async () => {
+      if (name === 'event') {
+        if (this.inWorkingHours()) await this.generateEvent().catch((e) => this.log('error', 'Generate failed: ' + e.message));
+        this.scheduleNextEvent();
+      } else {
+        await this.generateBackground().catch((e) => this.log('error', 'Background mail failed: ' + e.message));
+        this.scheduleBackground();
       }
-      this.scheduleNextEvent();
     }, ms);
     this.emitStatus();
   }
@@ -264,12 +363,13 @@ class Engine extends EventEmitter {
   // Change pace live: everything already scheduled is rescaled to the new speed.
   setPace(newPace) {
     const oldPace = this.pace;
+    this.foldExercise();
     this.settings.scenario.pace = Math.max(1, Number(newPace) || 1);
     this.store.save();
     const ratio = oldPace / this.pace;
     if (ratio === 1) return this.status();
     const now = Date.now();
-    for (const job of this.store.data.pending || []) {
+    for (const job of this.data.pending || []) {
       job.due = now + Math.max(0, job.due - now) * ratio;
       if (this.replyTimers.has(job.id)) {
         clearTimeout(this.replyTimers.get(job.id));
@@ -277,29 +377,74 @@ class Engine extends EventEmitter {
       }
     }
     this.store.save();
-    if (this.running && this.nextEventAt) {
-      this.armNextEvent(Math.max(0, Date.parse(this.nextEventAt) - now) * ratio);
-    }
+    if (this.running && this.nextEventAt) this.armTimer('event', Math.max(0, Date.parse(this.nextEventAt) - now) * ratio);
+    if (this.running && this.nextBackgroundAt) this.armTimer('background', Math.max(0, Date.parse(this.nextBackgroundAt) - now) * ratio);
     this.log('info', this.pace === 1 ? 'Pace set to real business time.' : `Pace set to ${this.pace}× faster than real time.`);
     this.emitStatus();
     return this.status();
   }
 
-  // ---------- outgoing (customer → company) ----------
+  // Settings that change timers take effect immediately while running.
+  settingsChanged() {
+    if (this.running && this.settings.scenario.backgroundEnabled && !this.nextBackgroundAt) this.scheduleBackground();
+    if (this.running && !this.settings.scenario.backgroundEnabled) this.scheduleBackground();
+  }
 
-  // body is the new text only; quoted is the thread message being replied to (if any).
-  async deliver({ customer, to, cc = [], subject, body, quoted = null, threadId, inReplyTo, references = [] }) {
-    const allowed = this.companyDomains();
-    const blocked = [...to, ...cc].filter((e) => !allowed.has(domainOf(e)));
-    if (blocked.length) {
-      throw new Error(`Refusing to send to address(es) outside the company: ${blocked.join(', ')}`);
+  // ---------- DKIM ----------
+
+  // Signing keys are generated per sender domain on first use and kept in the scenario.
+  dkimKey(domain) {
+    const keys = this.data.dkimKeys;
+    if (!keys[domain]) {
+      const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+      keys[domain] = {
+        selector: 'senario',
+        privateKey: privateKey.export({ type: 'pkcs8', format: 'pem' }),
+        publicKey: publicKey.export({ type: 'spki', format: 'der' }).toString('base64'),
+      };
+      this.store.save();
     }
-    const messageId = `<${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}@${domainOf(customer.email)}>`;
-    const staff = this.employeeMap();
-    const fmt = (e) => (staff.get(e) ? { name: staff.get(e).name, address: e } : e);
+    return keys[domain];
+  }
+
+  dkimFor(email) {
+    if (!this.settings.mail.dkim) return undefined;
+    const domain = domainOf(email);
+    const k = this.dkimKey(domain);
+    return { domainName: domain, keySelector: k.selector, privateKey: k.privateKey };
+  }
+
+  // DNS TXT records to publish on the scenario's DNS server, one per contact domain.
+  dkimRecords() {
+    return this.contactDomains().sort().map((d) => {
+      const k = this.dkimKey(d);
+      return { domain: d, name: `${k.selector}._domainkey.${d}`, value: `v=DKIM1; k=rsa; p=${k.publicKey}` };
+    });
+  }
+
+  // ---------- sending ----------
+
+  // Recipients must be on a company domain, or be another known customer/party (a
+  // colleague copied in). Every address on the list routes back to the scenario's own
+  // mail server, so traffic stays contained, and each message must reach the company.
+  checkRecipients(to, cc) {
+    const company = this.companyDomains();
+    const contacts = this.contactMap();
+    const all = [...to, ...cc].map(lc);
+    const blocked = all.filter((e) => !company.has(domainOf(e)) && !contacts.has(e));
+    if (blocked.length) throw new Error(`Refusing to send to address(es) outside the scenario: ${blocked.join(', ')}`);
+    if (!all.some((e) => company.has(domainOf(e)))) throw new Error('Every email must be addressed to someone at the company.');
+  }
+
+  // Sends one message. body is the new text only; quoted is the thread message being
+  // replied to (if any). extra: { attachments, icalEvent, headers, layout, meta, ... }.
+  async deliver({ customer, to, cc = [], subject, body, quoted = null, threadId, inReplyTo, references = [], extra = {} }) {
+    this.checkRecipients(to, cc);
+    const thread0 = threadId && this.data.threads[threadId];
     const date = new Date();
-    const people = new Map([...staff].map(([e, p]) => [e, p.name]));
+    const people = new Map([...this.employeeMap()].map(([e, p]) => [e, p.name]));
     for (const [e, c] of this.contactMap()) people.set(e, c.name);
+    const fmt = (e) => (people.get(lc(e)) ? { name: people.get(lc(e)), address: e } : e);
     const content = compose({
       body,
       sender: customer,
@@ -307,18 +452,32 @@ class Engine extends EventEmitter {
       format: this.settings.scenario.emailFormat === 'text' ? 'text' : 'html',
       year: this.year,
       nameOf: (e) => people.get(lc(e)) || '',
+      layout: extra.layout,
     });
-    this.store.data.sentIds[messageId] = Date.now();
+    const hdr = mailHeaders({
+      sender: customer,
+      year: this.year,
+      date: clock.toScenario(date, this.year),
+      subject,
+      threadIndex: thread0 && thread0.threadIndex,
+      bulk: extra.background ? (extra.layout === 'newsletter' ? 'newsletter' : 'notification') : null,
+    });
+    const messageId = hdr.messageId;
+    this.data.sentIds[messageId] = Date.now();
+    const sentDate = this.year && this.company.datedEmails !== false ? clock.toScenario(date, this.year) : date;
     await mail.sendMail(this.settings.mail, {
       messageId,
-      date: this.year && this.company.datedEmails !== false ? clock.toScenario(date, this.year) : date,
-      envelope: { from: customer.email, to: [...to, ...cc] },
+      envelope: { from: extra.envelopeFrom || customer.email, to: [...to, ...cc] },
       from: { name: customer.name, address: customer.email },
       to: to.map(fmt),
       cc: cc.map(fmt),
       subject,
       text: content.text,
       html: content.html,
+      headers: { Date: rfc2822(sentDate), ...hdr.headers, ...(extra.headers || {}) },
+      attachments: (extra.attachments || []).map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })),
+      icalEvent: extra.icalEvent,
+      dkim: this.dkimFor(customer.email),
       inReplyTo: inReplyTo || undefined,
       references: references.length ? references.join(' ') : undefined,
     });
@@ -332,22 +491,30 @@ class Engine extends EventEmitter {
       subject,
       body: String(body || '').trim(),
       date: date.toISOString(),
+      exerciseMs: this.exerciseElapsed(),
       direction: 'out',
+      ...(extra.attachments && extra.attachments.length ? { attachments: extra.attachments.map((a) => a.record) } : {}),
+      ...(extra.meta || {}),
     };
-    const thread = this.addToThread(threadId, record, subject, customer.email);
-    const who = customer.kind === 'party' ? `${customer.name} (${customer.organisation}, ${customer.role || 'external party'})` : `${customer.name} (${customer.organisation})`;
-    this.log('send', `${who} → ${[...to, ...cc].join(', ')}: "${subject}"`);
+    const thread = this.addToThread(threadId, record, subject, extra.threadOwner || customer.email);
+    if (!thread.threadIndex && hdr.threadIndex) thread.threadIndex = hdr.threadIndex;
+    if (extra.background) thread.background = true;
+    const who = customer.kind === 'party'
+      ? `${customer.name} (${customer.organisation}, ${customer.role || 'external party'})`
+      : customer.organisation ? `${customer.name} (${customer.organisation})` : customer.name;
+    const files = extra.attachments && extra.attachments.length ? ` with ${extra.attachments.map((a) => a.filename).join(', ')}` : '';
+    this.log('send', `${who} → ${[...to, ...cc].join(', ')}: "${subject}"${files}${extra.icalEvent ? ' + meeting invitation' : ''}`);
     this.emit('threads-changed');
     this.emitStatus();
     return { thread, record };
   }
 
   addToThread(threadId, record, subject, customerEmail) {
-    const data = this.store.data;
+    const data = this.data;
     let thread = threadId && data.threads[threadId];
     if (!thread) {
       threadId = threadId || crypto.randomUUID();
-      thread = { id: threadId, subject: baseSubject(subject), customer: lc(customerEmail), messages: [], updatedAt: record.date };
+      thread = { id: threadId, subject: baseSubject(subject), customer: lc(customerEmail), messages: [], updatedAt: record.date, status: 'open' };
       data.threads[threadId] = thread;
     }
     if (!thread.messages.some((m) => m.messageId === record.messageId)) thread.messages.push(record);
@@ -363,58 +530,256 @@ class Engine extends EventEmitter {
     const base = baseSubject(subject).toLowerCase();
     if (!base) return undefined;
     const addrs = new Set(addresses.map(lc));
-    const match = Object.values(this.store.data.threads)
-      .filter((t) => t.subject.toLowerCase() === base && addrs.has(t.customer))
+    const match = Object.values(this.data.threads)
+      .filter((t) => !t.background && t.subject.toLowerCase() === base && addrs.has(t.customer))
       .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))[0];
     return match && match.id;
   }
 
   historyFor(customerEmail) {
-    return Object.values(this.store.data.threads)
+    return Object.values(this.data.threads)
       .filter((t) => t.customer === lc(customerEmail))
       .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
       .slice(0, 10)
       .map((t) => t.subject);
   }
 
+  // ---------- drafts: every outgoing email goes through here ----------
+  //
+  // A draft is plain data, so it can wait in the Outbox for review and survive restarts:
+  // { kind, sender | senderInline, to, cc, subject, body, threadId, quotedId, inReplyTo,
+  //   references, followUp, followUpAttempt, resolves, remember, document, meeting,
+  //   headers, layout, envelopeFrom, skipReview }
+
+  async submit(draft) {
+    draft.id = draft.id || crypto.randomUUID();
+    draft.createdAt = draft.createdAt || new Date().toISOString();
+    if (this.settings.scenario.reviewBeforeSend && !draft.skipReview) {
+      this.data.outbox.push(draft);
+      this.store.save();
+      const s = this.senderOf(draft);
+      this.log('info', `${s ? s.name : 'Email'} drafted "${draft.subject}": waiting for review in the Outbox`);
+      this.emit('outbox-changed');
+      this.emitStatus();
+      return { queued: true, draft };
+    }
+    return this.sendDraft(draft);
+  }
+
+  senderOf(draft) {
+    return draft.senderInline || this.contactMap().get(lc(draft.sender)) || null;
+  }
+
+  async sendDraft(draft) {
+    const customer = this.senderOf(draft);
+    if (!customer) throw new Error(`Unknown sender ${draft.sender}`);
+    const thread0 = draft.threadId && this.data.threads[draft.threadId];
+    const quoted = thread0 && draft.quotedId ? thread0.messages.find((m) => m.messageId === draft.quotedId) : null;
+    const extra = {
+      meta: { kind: draft.kind, ...(draft.followUpAttempt ? { followUp: draft.followUpAttempt } : {}) },
+      headers: draft.headers,
+      layout: draft.layout,
+      background: draft.kind === 'background',
+      envelopeFrom: draft.envelopeFrom,
+    };
+    if (draft.document) {
+      extra.attachments = [await documents.generate(draft.document, {
+        name: customer.organisation || customer.name, email: customer.email, person: customer.name, year: this.year, now: this.scenarioNow(),
+      })];
+    }
+    if (draft.meeting) {
+      const m = calendar.normaliseMeeting(draft.meeting, this.scenarioNow());
+      if (m) {
+        const people = this.employeeMap();
+        const { client } = styleFor(customer.email, this.year);
+        const inv = calendar.invite({
+          meeting: m,
+          organizer: { name: customer.name, email: customer.email },
+          attendees: [...draft.to, ...(draft.cc || [])].map((e) => ({ email: e, name: (people.get(lc(e)) || {}).name })),
+          prodId: client.prodId ? `-//Microsoft Corporation//${client.prodId}//EN` : undefined,
+          stamp: this.scenarioNow(),
+        });
+        extra.icalEvent = { method: 'REQUEST', filename: 'invite.ics', content: inv.ics };
+        extra.meta.meeting = calendar.describe(m);
+      }
+    }
+    const { thread, record } = await this.deliver({
+      customer,
+      to: draft.to,
+      cc: draft.cc || [],
+      subject: draft.subject,
+      body: draft.body,
+      quoted,
+      threadId: draft.threadId,
+      inReplyTo: draft.inReplyTo,
+      references: draft.references || [],
+      extra,
+    });
+    if (draft.remember) this.remember(customer.email, draft.remember);
+    if (draft.kind !== 'background' && draft.kind !== 'ooo') thread.status = draft.resolves ? 'resolved' : 'open';
+    if (draft.followUp) this.scheduleFollowUp(customer, thread.id, record.messageId, (draft.followUpAttempt || 0) + 1);
+    this.store.save();
+    return { thread, record };
+  }
+
+  // Outbox (review queue): send with optional edits, or discard.
+  async approveDraft(id, edits = {}) {
+    const i = this.data.outbox.findIndex((d) => d.id === id);
+    if (i < 0) throw new Error('That draft is no longer in the Outbox.');
+    const draft = { ...this.data.outbox[i] };
+    for (const k of ['subject', 'body']) if (typeof edits[k] === 'string') draft[k] = edits[k];
+    for (const k of ['to', 'cc']) if (Array.isArray(edits[k])) draft[k] = edits[k].map(lc).filter(Boolean);
+    if (edits.dropDocument) delete draft.document;
+    if (edits.dropMeeting) delete draft.meeting;
+    this.checkRecipients(draft.to, draft.cc || []);
+    try {
+      await this.sendDraft(draft);
+    } catch (e) {
+      this.data.outbox[i].error = e.message;
+      this.store.save();
+      this.emit('outbox-changed');
+      throw e;
+    }
+    this.data.outbox = this.data.outbox.filter((d) => d.id !== id);
+    this.store.save();
+    this.emit('outbox-changed');
+    this.emitStatus();
+  }
+
+  discardDraft(id) {
+    const d = this.data.outbox.find((x) => x.id === id);
+    this.data.outbox = this.data.outbox.filter((x) => x.id !== id);
+    this.store.save();
+    if (d) this.log('info', `Discarded draft "${d.subject}"`);
+    this.emit('outbox-changed');
+    this.emitStatus();
+  }
+
+  // Write and send an email yourself, as any customer or party. Never held for review.
+  async composeManual({ from, to = [], cc = [], subject, body, threadId, expectReply = true }) {
+    const sender = this.contactMap().get(lc(from));
+    if (!sender) throw new Error('Choose a customer or party to send as.');
+    if (!String(body || '').trim()) throw new Error('Write a message first.');
+    const draft = { kind: 'manual', sender: sender.email, to: to.map(lc), cc: cc.map(lc), subject, body, followUp: expectReply, skipReview: true };
+    const t = threadId && this.data.threads[threadId];
+    if (t) {
+      const last = t.messages[t.messages.length - 1];
+      Object.assign(draft, {
+        threadId: t.id,
+        quotedId: last.messageId,
+        inReplyTo: last.messageId,
+        references: t.messages.map((m) => m.messageId).slice(-10),
+        subject: subject || `Re: ${t.subject}`,
+      });
+    }
+    if (!draft.subject) throw new Error('Enter a subject.');
+    return this.sendDraft(draft);
+  }
+
+  // ---------- new customer emails ----------
+
   // One unsolicited email from a random customer. External parties never start
-  // conversations, so they are never picked here.
-  async generateEvent(customerEmail) {
+  // conversations, so they are never picked here. brief/to come from scripted injects.
+  async generateEvent(customerEmail, { brief, to: injectTo, skipReview } = {}) {
     const customers = this.store.customers || [];
     const staff = this.employeeMap();
-    if (!customers.length) {
+    if (!customers.length && !brief) {
       if (customerEmail) throw new Error('No customers defined.');
       return this.log('info', 'No customers defined, so no new emails are started (external parties only reply).');
     }
     if (!staff.size) throw new Error('No employees defined.');
-    if (customerEmail && !this.customerMap().has(lc(customerEmail))) {
+    const contact = customerEmail && this.contactMap().get(lc(customerEmail));
+    if (customerEmail && (!contact || (contact.kind !== 'customer' && !brief))) {
       throw new Error('Only customers start conversations; external parties only reply.');
     }
+    if (!contact && !customers.length) throw new Error('No customers defined.');
 
-    const customer = { ...((customerEmail && this.customerMap().get(lc(customerEmail))) || pick(customers)), kind: 'customer' };
-    this.log('info', `Composing email from ${customer.name} (${customer.organisation})…`);
-    const draft = await ai.writeCustomerEmail(this.settings.openai, {
-      company: { ...this.company, employees: this.employees() },
+    const customer = contact || { ...pick(customers), kind: 'customer' };
+    const s = this.settings.scenario;
+    const colleagues = this.colleaguesOf(customer);
+    this.log('info', `Composing email from ${customer.name} (${customer.organisation || customer.role})…`);
+    const d = await ai.writeCustomerEmail(this.settings.openai, {
+      company: this.aiCompany(),
       customer,
+      colleagues,
       history: this.historyFor(customer.email),
-      guidance: this.settings.scenario.guidance,
+      guidance: s.guidance,
       now: this.nowText(),
+      allowDocuments: s.allowDocuments !== false,
+      allowMeetings: s.allowMeetings !== false,
+      brief,
+      to: injectTo,
     });
-    if (!draft.subject || !draft.body) throw new Error('Model returned an empty email.');
+    if (!d.subject || !d.body) throw new Error('Model returned an empty email.');
 
     // Only real employees may be addressed; fall back to a random one if the model strays.
-    let to = lc(draft.to);
-    if (!staff.has(to)) to = lc(pick(this.employees()).email);
-    const cc = [].concat(draft.cc || []).map(lc).filter((e) => staff.has(e) && e !== to).slice(0, 2);
+    let to = injectTo && injectTo.length ? injectTo.map(lc).filter((e) => staff.has(e)) : [lc(d.to)].filter((e) => staff.has(e));
+    if (!to.length) to = [lc(pick(this.employees()).email)];
+    const colleagueSet = new Set(colleagues.map((c) => lc(c.email)));
+    const cc = [
+      ...[].concat(d.cc || []).map(lc).filter((e) => staff.has(e) && !to.includes(e)).slice(0, 2),
+      ...[].concat(d.ccColleagues || []).map(lc).filter((e) => colleagueSet.has(e)).slice(0, 2),
+    ];
+    return this.submit({
+      kind: brief ? 'inject' : 'new',
+      sender: customer.email,
+      to,
+      cc,
+      subject: d.subject,
+      body: d.body,
+      followUp: true,
+      remember: d.remember,
+      document: s.allowDocuments !== false ? d.document : null,
+      meeting: s.allowMeetings !== false ? d.meeting : null,
+      skipReview,
+    });
+  }
 
-    const { thread, record } = await this.deliver({ customer, to: [to], cc, subject: draft.subject, body: draft.body });
-    this.scheduleFollowUp(customer, thread.id, record.messageId);
+  // ---------- background mail ----------
+
+  async generateBackground() {
+    const staff = this.employeeMap();
+    if (!staff.size) return null;
+    const s = this.settings.scenario;
+    const tld = String(s.customerTld || 'local').replace(/^\./, '');
+    const recent = Object.values(this.data.threads).filter((t) => t.background)
+      .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)).slice(0, 8).map((t) => t.customer);
+    const d = await ai.writeBackgroundEmail(this.settings.openai, {
+      company: this.aiCompany(), now: this.nowText(), tld, recentSenders: recent, guidance: s.guidance,
+    });
+    if (!d.subject || !d.body) throw new Error('Model returned an empty email.');
+    // The sender must be fictional and outside the company; otherwise use a safe address.
+    let from = lc(d.fromEmail);
+    const bad = !/^[^@\s]+@[a-z0-9.-]+$/.test(from) || !from.endsWith(`.${tld}`) || this.companyDomains().has(domainOf(from));
+    if (bad) {
+      const slug = String(d.organisation || d.fromName || 'updates').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || 'updates';
+      from = `${d.category === 'newsletter' ? 'news' : 'noreply'}@${slug}.${tld}`;
+    }
+    let to = [].concat(d.to || []).map(lc).filter((e) => staff.has(e)).slice(0, 4);
+    if (!to.length) to = [lc(pick(this.employees()).email)];
+    const newsletter = d.category === 'newsletter';
+    const dom = domainOf(from);
+    return this.submit({
+      kind: 'background',
+      senderInline: { name: d.fromName || d.organisation || dom, email: from, organisation: d.organisation || d.fromName, kind: 'background' },
+      to,
+      cc: [],
+      subject: d.subject,
+      body: d.body,
+      layout: newsletter ? 'newsletter' : 'notification',
+      envelopeFrom: newsletter ? `bounce-${crypto.randomBytes(4).toString('hex')}@${dom}` : undefined,
+      headers: newsletter
+        ? { Precedence: 'bulk', 'List-Id': `${d.organisation || dom} <news.${dom}>`, 'List-Unsubscribe': `<mailto:unsubscribe@${dom}>` }
+        : { 'Auto-Submitted': 'auto-generated', 'X-Auto-Response-Suppress': 'All' },
+      followUp: false,
+      skipReview: true,
+    });
   }
 
   // ---------- incoming (company → customer) ----------
 
   async handleIncoming(parsed, envelope) {
-    const data = this.store.data;
+    const data = this.data;
     const messageId = parsed.messageId || `<generated-${crypto.randomUUID()}@local>`;
     if (data.sentIds[messageId] || data.processedIds[messageId]) return;
     data.processedIds[messageId] = Date.now();
@@ -455,8 +820,15 @@ class Engine extends EventEmitter {
       [...to, ...cc, ...rcpt].map((e) => customers.get(e)).find(Boolean) ||
       (threadId ? customers.get(data.threads[threadId].customer) : null);
 
+    // A response to a meeting invitation (Accept / Tentative / Decline)?
+    const calPart = (parsed.attachments || []).find((a) => /text\/calendar/i.test(a.contentType || '') || /\.ics$/i.test(a.filename || ''));
+    const cal = calPart ? calendar.parse(calPart.content.toString('utf8')) : null;
+    const meetingResponse = cal && cal.method === 'REPLY'
+      ? `${{ ACCEPTED: 'Accepted', TENTATIVE: 'Tentatively accepted', DECLINED: 'Declined' }[cal.partstat] || 'Responded to'} the meeting "${cal.summary || baseSubject(subject)}"`
+      : null;
+
     // Read attachments (quotes, invoices, spreadsheets...) so the customer can respond to them.
-    const attachments = await extractAttachments(parsed.attachments, {
+    const attachments = await extractAttachments((parsed.attachments || []).filter((a) => a !== calPart), {
       describeImage: this.settings.openai.apiKey
         ? (buf, mime, name) => ai.describeImage(this.settings.openai, buf, mime, name)
         : null,
@@ -476,10 +848,13 @@ class Engine extends EventEmitter {
       // Receipt time on the real clock, so ordering and delays stay consistent even
       // when lab machines' clocks are set to the scenario year.
       date: new Date().toISOString(),
+      exerciseMs: this.exerciseElapsed(),
       direction: 'in',
       attachments,
+      ...(meetingResponse ? { meetingResponse } : {}),
     };
     const thread = this.addToThread(threadId, record, subject, customer ? customer.email : rcpt[0]);
+    thread.status = 'open';
     this.cancelFollowUps(thread.id);
     const files = attachments.length ? ` with ${attachments.map((a) => a.filename + (a.status === 'ok' ? '' : ` (${a.status})`)).join(', ')}` : '';
     this.log('recv', `${from.name || from.email} → ${[...to, ...cc].join(', ') || rcpt.join(', ')}: "${subject}"${files}`);
@@ -493,7 +868,55 @@ class Engine extends EventEmitter {
       this.log('info', `Sender ${from.email} is outside the company domain; not replying.`);
       return;
     }
+    // Accepting or tentatively accepting an invitation needs no answer.
+    if (meetingResponse && cal.partstat !== 'DECLINED') {
+      this.log('info', `${from.name || from.email}: ${meetingResponse}`);
+      thread.status = 'resolved';
+      this.store.save();
+      return;
+    }
+    // Sometimes the customer is away: an automatic out-of-office first, real reply later.
+    const s = this.settings.scenario;
+    if (!thread.messages.some((m) => m.kind === 'ooo' && m.from === lc(customer.email)) && chance(Number(s.oooChance) || 0)) {
+      const days = 1 + Math.floor(Math.random() * 3);
+      await this.sendOutOfOffice(customer, thread, record, days).catch((e) => this.log('error', 'Out-of-office failed: ' + e.message));
+      this.queueReply(customer, thread.id, messageId, days * 86400000);
+      return;
+    }
     this.queueReply(customer, thread.id, messageId);
+  }
+
+  // Automatic reply in the style of the customer's mail program.
+  async sendOutOfOffice(customer, thread, incoming, days) {
+    const back = new Date(this.scenarioNow().getTime() + days * 86400000);
+    while (back.getDay() === 0 || back.getDay() === 6) back.setDate(back.getDate() + 1);
+    const backText = back.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    const colleague = this.colleaguesOf(customer)[0];
+    const { client } = styleFor(customer.email, this.year);
+    const outlookOld = /outlook-(xp|2003|express)/.test(client.id);
+    const subject = `${outlookOld ? 'Out of Office AutoReply' : 'Automatic reply'}: ${incoming.subject}`;
+    const body = [
+      `Thank you for your email. I am out of the office until ${backText} with limited access to email.`,
+      '',
+      colleague
+        ? `For anything urgent, please contact ${colleague.name} (${colleague.email}).`
+        : `For anything urgent, please call ${customer.organisation || 'our office'} on the main number.`,
+      '',
+      customer.name,
+    ].join('\n');
+    return this.sendDraft({
+      kind: 'ooo',
+      sender: customer.email,
+      to: [incoming.from],
+      cc: [],
+      subject,
+      body,
+      threadId: thread.id,
+      inReplyTo: incoming.messageId,
+      references: [incoming.messageId],
+      headers: { 'Auto-Submitted': 'auto-replied', 'X-Auto-Response-Suppress': 'All' },
+      followUp: false,
+    });
   }
 
   // ---------- scheduled jobs: customer replies and follow-ups ----------
@@ -504,16 +927,16 @@ class Engine extends EventEmitter {
     job.id = crypto.randomUUID();
     job.due = Date.now() + scenarioMs / this.pace;
     job.scenarioMs = scenarioMs;
-    this.store.data.pending.push(job);
+    this.data.pending.push(job);
     this.store.save();
     this.armJob(job);
     this.emitStatus();
     return job;
   }
 
-  queueReply(customer, threadId, replyToId) {
+  queueReply(customer, threadId, replyToId, extraMs = 0) {
     const s = this.settings.scenario;
-    const ms = randBetween(Number(s.replyDelayMinSec) || 0, Number(s.replyDelayMaxSec) || 0) * 1000;
+    const ms = randBetween(Number(s.replyDelayMinSec) || 0, Number(s.replyDelayMaxSec) || 0) * 1000 + extraMs;
     const job = this.addJob({ type: 'reply', customer: lc(customer.email), threadId, replyToId }, ms);
     if (this.running) this.log('info', `${customer.name} will reply in ${fmtWait(job.due - Date.now())}`);
     else this.log('info', `${customer.name} will reply once the scenario is started`);
@@ -531,12 +954,12 @@ class Engine extends EventEmitter {
   }
 
   cancelFollowUps(threadId) {
-    const pending = this.store.data.pending || [];
+    const pending = this.data.pending || [];
     for (const job of pending.filter((j) => j.type === 'followup' && j.threadId === threadId)) {
       clearTimeout(this.replyTimers.get(job.id));
       this.replyTimers.delete(job.id);
     }
-    this.store.data.pending = pending.filter((j) => !(j.type === 'followup' && j.threadId === threadId));
+    this.data.pending = pending.filter((j) => !(j.type === 'followup' && j.threadId === threadId));
     this.store.save();
   }
 
@@ -548,12 +971,13 @@ class Engine extends EventEmitter {
   }
 
   resumePendingReplies() {
-    for (const job of this.store.data.pending || []) this.armJob(job);
+    for (const job of this.data.pending || []) this.armJob(job);
   }
 
   finishJob(job) {
+    clearTimeout(this.replyTimers.get(job.id));
     this.replyTimers.delete(job.id);
-    this.store.data.pending = (this.store.data.pending || []).filter((j) => j.id !== job.id);
+    this.data.pending = (this.data.pending || []).filter((j) => j.id !== job.id);
     this.store.save();
     this.emitStatus();
   }
@@ -575,46 +999,61 @@ class Engine extends EventEmitter {
     }
     try {
       const customer = this.contactMap().get(job.customer);
-      const thread = this.store.data.threads[job.threadId];
+      const thread = this.data.threads[job.threadId];
       const idx = thread ? thread.messages.findIndex((m) => m.messageId === job.replyToId) : -1;
       if (!customer || idx < 0) return;
       const incoming = thread.messages[idx];
 
       // If the employee wrote again before we answered, answer the latest message only.
       const later = thread.messages.slice(idx + 1);
-      if (later.some((m) => m.direction === 'in' || m.from === job.customer)) return;
+      if (later.some((m) => m.direction === 'in' || (m.from === job.customer && m.kind !== 'ooo'))) return;
 
+      const s = this.settings.scenario;
+      const colleagues = this.colleaguesOf(customer);
       const r = await ai.writeCustomerReply(this.settings.openai, {
-        company: { ...this.company, employees: this.employees() },
+        company: this.aiCompany(),
         customer,
+        colleagues,
         thread,
         incoming,
-        guidance: this.settings.scenario.guidance,
+        guidance: s.guidance,
         now: this.nowText(),
+        allowDocuments: s.allowDocuments !== false,
+        allowMeetings: s.allowMeetings !== false,
       });
       if (!r.shouldReply || !r.body) {
+        thread.status = 'resolved';
+        if (r.remember) this.remember(customer.email, r.remember);
+        this.store.save();
         this.log('info', `${customer.name} considers "${thread.subject}" finished; no reply.`);
         return;
       }
 
-      // Reply-all, but only to people inside the company.
+      // Reply-all: company addresses plus colleagues who were on the message.
       const company = this.companyDomains();
-      const ccSet = new Set([...incoming.to, ...(incoming.cc || [])].filter((e) => company.has(domainOf(e))));
+      const colleagueSet = new Set(colleagues.map((c) => lc(c.email)));
+      const ccSet = new Set([...incoming.to, ...(incoming.cc || [])].filter((e) => company.has(domainOf(e)) || colleagueSet.has(e)));
+      for (const e of [].concat(r.ccColleagues || []).map(lc)) if (colleagueSet.has(e)) ccSet.add(e);
       ccSet.delete(incoming.from);
-      const refs = thread.messages.map((m) => m.messageId).slice(-10);
+      ccSet.delete(lc(customer.email));
 
-      const { record } = await this.deliver({
-        customer,
+      await this.submit({
+        kind: 'reply',
+        sender: customer.email,
         to: [incoming.from],
         cc: [...ccSet],
         subject: 'Re: ' + baseSubject(incoming.subject),
         body: r.body,
-        quoted: incoming,
         threadId: thread.id,
+        quotedId: incoming.messageId,
         inReplyTo: incoming.messageId,
-        references: refs,
+        references: thread.messages.map((m) => m.messageId).slice(-10),
+        followUp: r.expectsResponse !== false,
+        resolves: r.expectsResponse === false,
+        remember: r.remember,
+        document: s.allowDocuments !== false ? r.document : null,
+        meeting: s.allowMeetings !== false ? r.meeting : null,
       });
-      if (r.expectsResponse !== false) this.scheduleFollowUp(customer, thread.id, record.messageId);
     } catch (e) {
       this.log('error', `Reply failed: ${e.message}`);
     } finally {
@@ -630,7 +1069,7 @@ class Engine extends EventEmitter {
     if (this.deferToWorkingHours(job)) return;
     try {
       const customer = this.contactMap().get(job.customer);
-      const thread = this.store.data.threads[job.threadId];
+      const thread = this.data.threads[job.threadId];
       const idx = thread ? thread.messages.findIndex((m) => m.messageId === job.afterId) : -1;
       if (!customer || idx < 0) return;
       // Answered (or already chased) since: nothing to do.
@@ -638,9 +1077,11 @@ class Engine extends EventEmitter {
       const last = thread.messages[idx];
 
       const staff = this.employeeMap();
+      const colleagues = this.colleaguesOf(customer);
       const r = await ai.writeFollowUp(this.settings.openai, {
-        company: { ...this.company, employees: this.employees() },
+        company: this.aiCompany(),
         customer,
+        colleagues,
         thread,
         attempt: job.attempt,
         waited: fmtWait(job.scenarioMs),
@@ -651,28 +1092,118 @@ class Engine extends EventEmitter {
 
       const to = last.to.filter((e) => staff.has(e));
       if (!to.length) return;
+      // Escalation: a senior colleague sends the chase instead, copying the original sender.
+      const escalateTo = job.attempt >= 2 && colleagues.find((c) => lc(c.email) === lc(r.escalateTo));
+      const sender = escalateTo || customer;
       const cc = [...new Set([...(last.cc || []), ...[].concat(r.addCc || []).map(lc)])]
-        .filter((e) => staff.has(e) && !to.includes(e))
+        .filter((e) => (staff.has(e) || colleagues.some((c) => lc(c.email) === e)) && !to.includes(e) && e !== lc(sender.email))
         .slice(0, 3);
+      if (escalateTo && !cc.includes(lc(customer.email))) cc.push(lc(customer.email));
 
-      const { record } = await this.deliver({
-        customer,
+      await this.submit({
+        kind: 'followup',
+        sender: sender.email,
         to,
         cc,
         subject: 'Re: ' + baseSubject(last.subject),
         body: r.body,
-        quoted: last,
         threadId: thread.id,
+        quotedId: last.messageId,
         inReplyTo: last.messageId,
         references: thread.messages.map((m) => m.messageId).slice(-10),
+        followUp: true,
+        followUpAttempt: job.attempt,
+        remember: r.remember,
       });
-      this.log('info', `${customer.name} chased "${thread.subject}" (follow-up ${job.attempt})`);
-      this.scheduleFollowUp(customer, thread.id, record.messageId, job.attempt + 1);
+      this.log('info', `${sender.name} chased "${thread.subject}" (follow-up ${job.attempt}${escalateTo ? `, escalated from ${customer.name}` : ''})`);
     } catch (e) {
       this.log('error', `Follow-up failed: ${e.message}`);
     } finally {
       this.finishJob(job);
     }
+  }
+
+  // ---------- scripted injects ----------
+  //
+  // inject = { id, at (minutes after exercise start), title, type: 'email' | 'guidance',
+  //   from, to[], cc[], mode: 'brief' | 'exact', subject, body, expectReply,
+  //   guidanceMode: 'replace' | 'append', status: 'pending' | 'sent' | 'failed', firedAt, error }
+
+  setInjects(list) {
+    const old = new Map((this.data.injects || []).map((i) => [i.id, i]));
+    this.data.injects = (list || []).map((i) => {
+      const prev = old.get(i.id) || {};
+      return {
+        id: i.id || crypto.randomUUID(),
+        at: Math.max(0, Number(i.at) || 0),
+        title: String(i.title || ''),
+        type: i.type === 'guidance' ? 'guidance' : 'email',
+        from: lc(i.from),
+        to: [].concat(i.to || []).map(lc).filter(Boolean),
+        cc: [].concat(i.cc || []).map(lc).filter(Boolean),
+        mode: i.mode === 'exact' ? 'exact' : 'brief',
+        subject: String(i.subject || ''),
+        body: String(i.body || ''),
+        expectReply: i.expectReply !== false,
+        guidanceMode: i.guidanceMode === 'append' ? 'append' : 'replace',
+        status: prev.status || 'pending',
+        ...(prev.firedAt ? { firedAt: prev.firedAt, firedAtMs: prev.firedAtMs } : {}),
+        ...(prev.error ? { error: prev.error } : {}),
+      };
+    }).sort((a, b) => a.at - b.at);
+    this.store.save();
+    this.emit('injects-changed');
+    this.emitStatus();
+    return this.data.injects;
+  }
+
+  checkInjects() {
+    if (!this.running || this.firingInjects) return;
+    const elapsed = this.exerciseElapsed();
+    const due = (this.data.injects || []).filter((i) => i.status === 'pending' && i.at * 60000 <= elapsed);
+    if (!due.length) return;
+    this.firingInjects = true;
+    (async () => {
+      for (const i of due) await this.fireInject(i.id);
+    })().finally(() => { this.firingInjects = false; });
+  }
+
+  async fireInject(id) {
+    const inj = (this.data.injects || []).find((i) => i.id === id);
+    if (!inj) throw new Error('Inject not found.');
+    const label = inj.title || inj.subject || (inj.type === 'guidance' ? 'guidance change' : 'email');
+    try {
+      if (inj.type === 'guidance') {
+        const s = this.settings.scenario;
+        s.guidance = inj.guidanceMode === 'append' && s.guidance ? `${s.guidance}\n${inj.body}` : inj.body;
+        this.emit('settings-changed');
+      } else if (inj.mode === 'exact') {
+        const sender = this.contactMap().get(inj.from);
+        if (!sender) throw new Error(`Unknown sender ${inj.from || '(none chosen)'}`);
+        if (!inj.to.length) throw new Error('No recipient chosen.');
+        if (!inj.subject || !inj.body) throw new Error('Exact emails need a subject and body.');
+        await this.sendDraft({ kind: 'inject', sender: sender.email, to: inj.to, cc: inj.cc, subject: inj.subject, body: inj.body, followUp: inj.expectReply });
+      } else {
+        if (!inj.body && !inj.subject) throw new Error('Describe what the email should be about.');
+        const customers = this.store.customers || [];
+        const sender = inj.from || (customers.length ? lc(pick(customers).email) : '');
+        if (!sender) throw new Error('No sender chosen and no customers defined.');
+        await this.generateEvent(sender, { brief: [inj.subject, inj.body].filter(Boolean).join('\n'), to: inj.to, skipReview: true });
+      }
+      inj.status = 'sent';
+      inj.firedAt = new Date().toISOString();
+      inj.firedAtMs = this.exerciseElapsed();
+      delete inj.error;
+      this.log('info', `Inject fired at T+${Math.round(this.exerciseElapsed() / 60000)} min: ${label}`);
+    } catch (e) {
+      inj.status = 'failed';
+      inj.error = e.message;
+      this.log('error', `Inject "${label}" failed: ${e.message}`);
+    }
+    this.store.save();
+    this.emit('injects-changed');
+    this.emitStatus();
+    return inj;
   }
 
   // ---------- manual actions ----------
@@ -682,7 +1213,12 @@ class Engine extends EventEmitter {
     await this.generateEvent(customerEmail);
   }
 
-  // Swap in a whole scenario loaded from a .senario file.
+  async backgroundNow() {
+    this.validate();
+    await this.generateBackground();
+  }
+
+  // Swap in a whole scenario loaded from a .senario file or a template.
   async loadSnapshot(snapshot, opts) {
     await this.stop();
     for (const t of this.replyTimers.values()) clearTimeout(t);
@@ -690,6 +1226,8 @@ class Engine extends EventEmitter {
     this.store.replaceAll(snapshot, opts);
     await this.restartListener().catch(() => {});
     this.emit('threads-changed');
+    this.emit('outbox-changed');
+    this.emit('injects-changed');
     this.emitStatus();
   }
 
@@ -698,8 +1236,9 @@ class Engine extends EventEmitter {
     this.replyTimers.clear();
     this.store.resetConversations();
     this.log('info', 'Conversation history cleared.');
+    this.emit('outbox-changed');
     this.emitStatus();
   }
 }
 
-module.exports = { Engine, stripQuoted };
+module.exports = { Engine, stripQuoted, baseSubject };

@@ -1,0 +1,37 @@
+{
+  "id": "northwind-lighting",
+  "name": "Northwind Stage Lighting",
+  "summary": "Stage lighting hire and installation for theatres, schools and events. Set in 2005.",
+  "company": {
+    "name": "Northwind Stage Lighting Ltd",
+    "domain": "northwind.local",
+    "operatingYear": 2005,
+    "datedEmails": true,
+    "description": "Northwind hires and installs stage lighting for theatres, schools, weddings and corporate events across the North West, from a warehouse in Salford. About 15 staff. Customers request quotes, book kit and crew, report faults and query invoices. The busy autumn season is under way with several theatre openings, and the company has just bought a second Avolites Pearl desk.",
+    "employees": [
+      { "name": "Sarah Collins", "email": "sarah.collins@northwind.local", "role": "Sales Manager", "responsibilities": "Quotes, new hire enquiries, key accounts" },
+      { "name": "Tom Reid", "email": "tom.reid@northwind.local", "role": "Hire Coordinator", "responsibilities": "Bookings, crew scheduling, deliveries and collections" },
+      { "name": "Priya Shah", "email": "priya.shah@northwind.local", "role": "Accounts", "responsibilities": "Invoices, payments, credit accounts, supplier bills" },
+      { "name": "Mike Dunn", "email": "mike.dunn@northwind.local", "role": "Operations Director", "responsibilities": "Escalations, suppliers, warehouse, complaints" },
+      { "name": "Lee Barker", "email": "lee.barker@northwind.local", "role": "Senior Technician", "responsibilities": "Faults, technical questions, rig specifications" }
+    ]
+  },
+  "customers": [
+    { "name": "Helen Marsh", "email": "helen.marsh@riversidetheatre.local", "organisation": "Riverside Theatre", "role": "Production Manager", "relationship": "Hires lighting for every main-house show since 1999", "personality": "Organised and warm, but firm about budgets", "writingStyle": "Friendly, detailed, numbered points", "signature": "Helen Marsh\nProduction Manager\nRiverside Theatre\nTel 0161 496 0321" },
+    { "name": "David Okoro", "email": "david.okoro@riversidetheatre.local", "organisation": "Riverside Theatre", "role": "General Manager", "relationship": "Signs off budgets over £2,000", "personality": "Formal, busy, gets involved when things go wrong", "writingStyle": "Short and formal", "signature": "David Okoro\nGeneral Manager\nRiverside Theatre" },
+    { "name": "Gary Pike", "email": "gary@pikeevents.local", "organisation": "Pike Events", "role": "Director", "relationship": "Corporate events client, books a few times a year, often last-minute", "personality": "Impatient, always in a rush", "writingStyle": "Short, few capitals, no greeting", "signature": "Gary\nPike Events\nMob 07700 900456" },
+    { "name": "Aisha Rahman", "email": "a.rahman@stmarysschool.local", "organisation": "St Mary's School", "role": "Bursar", "relationship": "Annual school production hire", "personality": "Polite and precise, follows procedure", "writingStyle": "Formal, quotes order numbers", "signature": "Mrs A. Rahman\nBursar, St Mary's School\nTel 0161 496 0777" },
+    { "name": "Jon Ellery", "email": "jon@elleryweddings.local", "organisation": "Ellery Weddings", "role": "Planner", "relationship": "New customer this year", "personality": "Chatty and enthusiastic", "writingStyle": "Long emails, lots of exclamation marks", "signature": "Jon x\nEllery Weddings" }
+  ],
+  "parties": [
+    { "name": "Dave Smith", "email": "dave@smithaccountants.local", "organisation": "Smith & Co Chartered Accountants", "role": "Accountant", "services": "Year-end accounts, VAT returns and payroll since 1998", "personality": "Methodical, a stickler for deadlines", "writingStyle": "Brief, bullet points for figures", "signature": "Dave Smith ACA\nSmith & Co\nTel 0161 496 0199" },
+    { "name": "Kev Morgan", "email": "kev@bytefix.local", "organisation": "ByteFix IT", "role": "IT contractor", "services": "Looks after the office PCs, the Windows server and the tape backups", "personality": "Laid back but knows his stuff", "writingStyle": "Casual", "signature": "Kev\nByteFix IT\n07700 900123" },
+    { "name": "Orders Desk", "email": "orders@stagesupplyco.local", "organisation": "Stage Supply Co", "role": "Wholesaler", "services": "Lamps, gel, cable and spares on account; next-day delivery", "personality": "Efficient", "writingStyle": "Short, gives stock levels and order numbers", "signature": "Orders Desk\nStage Supply Co\nTel 0870 900 1234" }
+  ],
+  "injects": [
+    { "at": 20, "title": "Fault on a hired desk", "type": "email", "from": "helen.marsh@riversidetheatre.local", "to": ["lee.barker@northwind.local"], "mode": "brief", "body": "The Avolites Pearl you delivered keeps freezing during the technical rehearsal; opening night is tomorrow. Ask for a replacement or an engineer urgently." },
+    { "at": 60, "title": "Invoice dispute", "type": "email", "from": "gary@pikeevents.local", "to": ["priya.shah@northwind.local"], "mode": "brief", "body": "Dispute invoice INV-2207: you were charged for 4 crew but only 3 turned up at the Midland Hotel event. Refuse to pay until it is corrected." },
+    { "at": 120, "title": "Busy week", "type": "guidance", "guidanceMode": "append", "body": "It is the busiest week of the season: customers are anxious about delivery times and several shows open on Friday." },
+    { "at": 180, "title": "Escalation from the GM", "type": "email", "from": "david.okoro@riversidetheatre.local", "to": ["mike.dunn@northwind.local"], "mode": "brief", "body": "Formal complaint about the desk failure during the tech rehearsal; ask what Northwind will do to make sure it does not happen again and whether a credit will be offered." }
+  ]
+}

@@ -113,7 +113,9 @@ async function extractAttachments(attachments, { describeImage } = {}) {
         const mime = /^image\//.test(item.contentType) ? item.contentType : IMAGE_MIME[ext] || 'image/png';
         text = await describeImage(a.content, mime, filename);
       } else {
-        text = await runWorker(item.kind, new Uint8Array(a.content));
+        // Many "Word documents" are really RTF saved with a .doc name; read them as RTF.
+        const kind = item.kind === 'doc' && a.content.subarray(0, 5).toString('latin1') === '{\\rtf' ? 'rtf' : item.kind;
+        text = await runWorker(kind, new Uint8Array(a.content));
       }
       Object.assign(item, clip(text));
       if (!item.text) item.status = 'empty'; // e.g. a scanned PDF with no text layer

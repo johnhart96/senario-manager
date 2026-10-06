@@ -51,7 +51,7 @@ async function deliverToApp(raw, envelope, localAddress = '127.0.0.1') {
     openai: { apiKey: 'x', model: 'm' },
     mail: { ...store.settings.mail, host: '127.0.0.1', smtpPort: 2526, smtpSecurity: 'none' },
     listener: { ...store.settings.listener, bindAddress: '127.0.0.1', port: 2527, offerStartTls: false },
-    scenario: { ...store.settings.scenario, replyDelayMinSec: 0, replyDelayMaxSec: 0, minIntervalMin: 600, maxIntervalMin: 600, followUpEnabled: false },
+    scenario: { ...store.settings.scenario, oooChance: 0, backgroundEnabled: false, replyDelayMinSec: 0, replyDelayMaxSec: 0, minIntervalMin: 600, maxIntervalMin: 600, followUpEnabled: false },
   });
   store.setCompany({
     name: 'Company X', domain: 'companyx.local', description: 'Sells refrigeration.',
@@ -137,7 +137,7 @@ async function deliverToApp(raw, envelope, localAddress = '127.0.0.1') {
   console.log('OK 6: new employee-initiated thread answered');
 
   // 7. Direct deliver to a non-company address is refused.
-  await assert.rejects(engine.deliver({ customer: store.customers[0], to: ['x@gmail.com'], subject: 's', body: 'b' }), /outside the company/);
+  await assert.rejects(engine.deliver({ customer: store.customers[0], to: ['x@gmail.com'], subject: 's', body: 'b' }), /outside the scenario/);
   console.log('OK 7: outbound restricted to company domain');
 
   // 8. Reply without In-Reply-To/References (as Exchange sometimes does) threads by subject.

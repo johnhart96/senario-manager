@@ -1,0 +1,32 @@
+{
+  "id": "it-msp",
+  "name": "Brightline IT Services",
+  "summary": "Managed IT service provider: client tickets, outages, renewals and vendors.",
+  "company": {
+    "name": "Brightline IT Services Ltd",
+    "domain": "brightline.local",
+    "description": "A 30-person managed service provider in Cardiff supporting around 80 small and medium businesses: helpdesk, Microsoft 365, firewalls, backups and cyber security. Clients email about outages, new starters and leavers, licence renewals, invoices and security worries. A recent phishing campaign is targeting clients, and the company is migrating clients to a new backup platform.",
+    "employees": [
+      { "name": "Owen Price", "email": "owen.price@brightline.local", "role": "Service Desk Manager", "responsibilities": "Escalations, SLAs, major incidents" },
+      { "name": "Service Desk", "email": "support@brightline.local", "role": "Service Desk", "responsibilities": "Tickets, password resets, new starters and leavers" },
+      { "name": "Ffion Davies", "email": "ffion.davies@brightline.local", "role": "Account Manager", "responsibilities": "Renewals, quotes, client relationships, contracts" },
+      { "name": "Ravi Patel", "email": "ravi.patel@brightline.local", "role": "Security Engineer", "responsibilities": "Phishing reports, incidents, firewall changes" },
+      { "name": "Billing", "email": "billing@brightline.local", "role": "Accounts", "responsibilities": "Invoices, direct debits, licence billing" }
+    ]
+  },
+  "customers": [
+    { "name": "Gareth Lloyd", "email": "gareth@lloydarchitects.local", "organisation": "Lloyd Architects", "role": "Practice Director", "relationship": "Client for 6 years, 25 users", "personality": "Reasonable until things break", "writingStyle": "Clear, expects quick action", "signature": "Gareth Lloyd\nPractice Director, Lloyd Architects" },
+    { "name": "Emma Rees", "email": "office@lloydarchitects.local", "organisation": "Lloyd Architects", "role": "Office Manager", "relationship": "Day-to-day contact for IT requests", "personality": "Organised, friendly", "writingStyle": "Lists requests", "signature": "Emma Rees\nOffice Manager, Lloyd Architects" },
+    { "name": "Dr Sian Morgan", "email": "practice.manager@bayviewdental.local", "organisation": "Bayview Dental", "role": "Practice Owner", "relationship": "New client onboarded last month", "personality": "Anxious about patient data", "writingStyle": "Formal", "signature": "Dr Sian Morgan\nBayview Dental" },
+    { "name": "Callum Hughes", "email": "callum@hughesfreight.local", "organisation": "Hughes Freight", "role": "Operations Manager", "relationship": "Logistics client running 24/7", "personality": "Stressed, blunt", "writingStyle": "Short, urgent", "signature": "Callum\nHughes Freight Ops" }
+  ],
+  "parties": [
+    { "name": "Partner Support", "email": "partners@vaultbackup.local", "organisation": "VaultBackup", "role": "Backup vendor", "services": "Cloud backup platform Brightline is migrating clients to", "personality": "Helpful but slow", "writingStyle": "Case numbers, knowledge-base links", "signature": "Partner Support\nVaultBackup" },
+    { "name": "Distribution Desk", "email": "orders@techdistri.local", "organisation": "TechDistri", "role": "IT distributor", "services": "Hardware and licence orders, renewals pricing", "personality": "Sales-focused", "writingStyle": "Quote numbers, stock", "signature": "TechDistri Orders" }
+  ],
+  "injects": [
+    { "at": 15, "title": "Suspicious email reported", "type": "email", "from": "office@lloydarchitects.local", "to": ["support@brightline.local"], "mode": "brief", "body": "Report that two staff received an email asking them to re-enter their Microsoft 365 password on a strange-looking page, and one of them may have done it." },
+    { "at": 45, "title": "Outage", "type": "email", "from": "callum@hughesfreight.local", "to": ["support@brightline.local"], "mode": "brief", "body": "Nobody in the warehouse can print delivery notes and lorries are waiting; demand an engineer now." },
+    { "at": 100, "title": "Escalation", "type": "email", "from": "gareth@lloydarchitects.local", "to": ["owen.price@brightline.local"], "mode": "brief", "body": "Ask for a full explanation of the possible account compromise reported this morning, what has been done, and whether client data was exposed." }
+  ]
+}

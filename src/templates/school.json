@@ -1,0 +1,33 @@
+{
+  "id": "school",
+  "name": "St Aldric's Academy",
+  "summary": "Secondary school: parents, the local authority, suppliers and exam boards.",
+  "company": {
+    "name": "St Aldric's Academy",
+    "domain": "staldrics.local",
+    "description": "An 11–18 secondary academy in Nottingham with 1,100 pupils. The school receives email from parents (absences, bullying concerns, trips, uniform, SEND support), the local authority, catering and transport suppliers, and exam boards. It is mock exam season, a Year 9 trip to the Peak District is next week, and the school is rolling out a new parent payment system that has had teething problems.",
+    "employees": [
+      { "name": "Mrs Karen Doyle", "email": "k.doyle@staldrics.local", "role": "Headteacher", "responsibilities": "Complaints, safeguarding escalations, governors" },
+      { "name": "Mr Daniel Frost", "email": "d.frost@staldrics.local", "role": "Head of Year 9", "responsibilities": "Pastoral issues, behaviour, the Year 9 trip" },
+      { "name": "Ms Leah Moran", "email": "l.moran@staldrics.local", "role": "SENCo", "responsibilities": "Special educational needs, EHCPs, access arrangements" },
+      { "name": "Office", "email": "office@staldrics.local", "role": "School Office", "responsibilities": "Absences, general enquiries, uniform, lost property" },
+      { "name": "Finance", "email": "finance@staldrics.local", "role": "Finance Office", "responsibilities": "Trip payments, the payment system, supplier invoices" },
+      { "name": "Exams Officer", "email": "exams@staldrics.local", "role": "Exams Officer", "responsibilities": "Exam entries, mock timetables, access arrangements with exam boards" }
+    ]
+  },
+  "customers": [
+    { "name": "Rebecca Hall", "email": "rebecca.hall@hallfamily.local", "organisation": "Parent", "role": "Parent of Ellie Hall, Year 9", "relationship": "Ellie has had friendship problems this term", "personality": "Protective and persistent", "writingStyle": "Long, emotional", "signature": "Rebecca Hall (Ellie's mum)" },
+    { "name": "Tariq Mahmood", "email": "tariq.mahmood@mahmoodmail.local", "organisation": "Parent", "role": "Parent of Zain Mahmood, Year 11", "relationship": "Zain has an EHCP and needs extra time in exams", "personality": "Polite, detail-focused", "writingStyle": "Structured, refers to documents", "signature": "Tariq Mahmood" },
+    { "name": "Claire Dunn", "email": "claire.dunn@dunnhouse.local", "organisation": "Parent", "role": "Parent of twins in Year 7", "relationship": "Struggling with the new payment system", "personality": "Busy, slightly exasperated", "writingStyle": "Short, sent from phone", "signature": "Claire" },
+    { "name": "Steve Archer", "email": "bookings@peakcoaches.local", "organisation": "Peak Coaches", "role": "Bookings Manager", "relationship": "Provides coaches for school trips", "personality": "Friendly, practical", "writingStyle": "Brief", "signature": "Steve Archer\nPeak Coaches" }
+  ],
+  "parties": [
+    { "name": "SEND Team", "email": "send.team@nottslocalauthority.local", "organisation": "Nottingham City Council SEND Service", "role": "Local authority SEND caseworker", "services": "EHCP annual reviews, funding and placement decisions", "personality": "Overstretched but helpful", "writingStyle": "Formal, references case numbers", "signature": "SEND Casework Team\nNottingham City Council" },
+    { "name": "PaySchool Support", "email": "support@payschool.local", "organisation": "PaySchool", "role": "Payment system supplier", "services": "Online parent payments for trips, meals and uniform", "personality": "Scripted", "writingStyle": "Ticket-style", "signature": "PaySchool Support" }
+  ],
+  "injects": [
+    { "at": 20, "title": "Bullying concern", "type": "email", "from": "rebecca.hall@hallfamily.local", "to": ["d.frost@staldrics.local"], "mode": "brief", "body": "Ellie came home in tears after messages from other girls in her form; ask what the school will do and whether she should go on next week's trip." },
+    { "at": 60, "title": "Payment system failure", "type": "email", "from": "claire.dunn@dunnhouse.local", "to": ["finance@staldrics.local"], "mode": "brief", "body": "You were charged twice for the Year 7 trip deposit and the system now shows the twins as unpaid." },
+    { "at": 120, "title": "Coach cancellation", "type": "email", "from": "bookings@peakcoaches.local", "to": ["d.frost@staldrics.local"], "mode": "brief", "body": "One of the two coaches booked for the Year 9 trip is off the road; offer a smaller replacement or a later departure time." }
+  ]
+}

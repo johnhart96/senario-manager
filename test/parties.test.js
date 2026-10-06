@@ -47,7 +47,7 @@ const CUSTOMER = { name: 'Carl Customer', email: 'carl@bright.local', organisati
     openai: { apiKey: 'x', model: 'm', baseURL: 'http://127.0.0.1:2594/v1' },
     mail: { ...store.settings.mail, host: '127.0.0.1', smtpPort: 2593, smtpSecurity: 'none' },
     listener: { ...store.settings.listener, bindAddress: '127.0.0.1', port: 2595, offerStartTls: false },
-    scenario: { ...store.settings.scenario, replyDelayMinSec: 0, replyDelayMaxSec: 0, minIntervalMin: 600, maxIntervalMin: 600,
+    scenario: { ...store.settings.scenario, oooChance: 0, backgroundEnabled: false, replyDelayMinSec: 0, replyDelayMaxSec: 0, minIntervalMin: 600, maxIntervalMin: 600,
       followUpEnabled: true, followUpMinHours: 1, followUpMaxHours: 1, followUpMax: 1 } });
   store.setCompany({ name: 'Company X', domain: 'companyx.local', description: 'Sells lamps.',
     employees: [{ name: 'Ann', email: 'ann@companyx.local', role: 'Finance', responsibilities: 'accounts' }] });
@@ -80,7 +80,7 @@ const CUSTOMER = { name: 'Carl Customer', email: 'carl@bright.local', organisati
   assert.match(p, /external supplier\/contractor working for a company \(their client\)/);
   assert.match(p, /the company is YOUR CLIENT/);
   assert.match(p, /What you do for them: Year-end accounts, VAT returns and payroll/);
-  assert.match(p, /You cannot attach files/);
+  assert.match(p, /Only say something is attached if you include a "document"/);
   console.log('OK 3: accountant replied in thread, prompted as a supplier serving their client');
 
   // 4. Party chasing is off by default even though the reply expects an answer.
@@ -108,7 +108,7 @@ const CUSTOMER = { name: 'Carl Customer', email: 'carl@bright.local', organisati
   // 8. Persistence, including files from before parties existed.
   const f = path.join(os.tmpdir(), `pt-${process.pid}.senario`);
   saveSenario(f, store.data, {});
-  assert.deepStrictEqual(loadSenario(f).data.parties, [PARTY]);
+  assert.deepStrictEqual(loadSenario(f).data.parties, [{ ...PARTY, memory: [] }]);
   const db = new DatabaseSync(f); db.exec('DROP TABLE parties'); db.close();
   assert.deepStrictEqual(loadSenario(f).data.parties, []);
   fs.rmSync(f);

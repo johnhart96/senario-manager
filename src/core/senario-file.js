@@ -7,7 +7,7 @@ const fs = require('fs');
 const { DatabaseSync } = require('node:sqlite');
 
 const FORMAT = 'senario';
-const FORMAT_VERSION = 1;
+const FORMAT_VERSION = 2; // 2: outbox, injects, exercise clock, memory, message metadata
 
 const SCHEMA = `
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -21,17 +21,21 @@ CREATE TABLE employees (
 );
 CREATE TABLE customers (
   position INTEGER PRIMARY KEY, name TEXT, email TEXT NOT NULL, organisation TEXT, role TEXT,
-  relationship TEXT, personality TEXT, writing_style TEXT, signature TEXT
+  relationship TEXT, personality TEXT, writing_style TEXT, signature TEXT, memory TEXT -- JSON array
 );
 CREATE TABLE parties (
   position INTEGER PRIMARY KEY, name TEXT, email TEXT NOT NULL, organisation TEXT, role TEXT,
-  services TEXT, personality TEXT, writing_style TEXT, signature TEXT
+  services TEXT, personality TEXT, writing_style TEXT, signature TEXT, memory TEXT -- JSON array
 );
-CREATE TABLE threads (id TEXT PRIMARY KEY, subject TEXT, customer TEXT, updated_at TEXT);
+CREATE TABLE threads (
+  id TEXT PRIMARY KEY, subject TEXT, customer TEXT, updated_at TEXT,
+  status TEXT, background INTEGER NOT NULL DEFAULT 0, thread_index TEXT
+);
 CREATE TABLE messages (
   message_id TEXT NOT NULL, thread_id TEXT NOT NULL REFERENCES threads(id), position INTEGER NOT NULL,
   direction TEXT NOT NULL, from_addr TEXT, from_name TEXT, to_addrs TEXT, cc_addrs TEXT,
   subject TEXT, body TEXT, date TEXT,
+  meta TEXT, -- JSON: kind, exerciseMs, followUp, meeting, meetingResponse
   PRIMARY KEY (thread_id, position)
 );
 CREATE INDEX messages_by_id ON messages (message_id);
@@ -42,11 +46,19 @@ CREATE TABLE pending_jobs (
 CREATE TABLE attachments (
   thread_id TEXT NOT NULL, position INTEGER NOT NULL, idx INTEGER NOT NULL,
   filename TEXT, content_type TEXT, size INTEGER, kind TEXT, status TEXT, text TEXT, truncated INTEGER, error TEXT,
+  spec TEXT, -- JSON document spec for attachments the app generated (sent = 1)
+  sent INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (thread_id, position, idx)
 );
+CREATE TABLE outbox (position INTEGER PRIMARY KEY, draft TEXT NOT NULL);   -- JSON drafts awaiting review
+CREATE TABLE injects (position INTEGER PRIMARY KEY, inject TEXT NOT NULL); -- JSON scripted events
+CREATE TABLE state (key TEXT PRIMARY KEY, value TEXT NOT NULL);            -- JSON: exercise clock, DKIM keys
 CREATE TABLE activity_log (id INTEGER PRIMARY KEY, time TEXT NOT NULL, level TEXT NOT NULL, message TEXT NOT NULL);
 CREATE TABLE seen_messages (message_id TEXT PRIMARY KEY, kind TEXT NOT NULL, at INTEGER); -- sent | processed
 `;
+
+// Message fields stored in their own columns; anything else goes into messages.meta.
+const MESSAGE_COLUMNS = new Set(['messageId', 'direction', 'from', 'fromName', 'to', 'cc', 'subject', 'body', 'date', 'attachments']);
 
 // Settings fields that hold credentials; only written when explicitly requested.
 const SECRETS = [
@@ -81,32 +93,46 @@ function saveSenario(file, data, { includeSecrets = false, appVersion = '' } = {
     const emp = db.prepare('INSERT INTO employees VALUES (?, ?, ?, ?, ?)');
     (c.employees || []).forEach((e, i) => emp.run(i, e.name || '', e.email, e.role || '', e.responsibilities || ''));
 
-    const cust = db.prepare('INSERT INTO customers VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const mem = (x) => JSON.stringify(Array.isArray(x.memory) ? x.memory : []);
+    const cust = db.prepare('INSERT INTO customers VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     (data.customers || []).forEach((x, i) =>
       cust.run(i, x.name || '', x.email, x.organisation || '', x.role || '', x.relationship || '',
-        x.personality || '', x.writingStyle || '', x.signature || '')
+        x.personality || '', x.writingStyle || '', x.signature || '', mem(x))
     );
 
-    const party = db.prepare('INSERT INTO parties VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const party = db.prepare('INSERT INTO parties VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     (data.parties || []).forEach((x, i) =>
       party.run(i, x.name || '', x.email, x.organisation || '', x.role || '', x.services || '',
-        x.personality || '', x.writingStyle || '', x.signature || '')
+        x.personality || '', x.writingStyle || '', x.signature || '', mem(x))
     );
 
-    const thread = db.prepare('INSERT INTO threads VALUES (?, ?, ?, ?)');
-    const msg = db.prepare('INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    const att = db.prepare('INSERT INTO attachments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const thread = db.prepare('INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?, ?)');
+    const msg = db.prepare('INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const att = db.prepare('INSERT INTO attachments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     for (const t of Object.values(data.threads || {})) {
-      thread.run(t.id, t.subject || '', t.customer || '', t.updatedAt || '');
+      thread.run(t.id, t.subject || '', t.customer || '', t.updatedAt || '', t.status || 'open', t.background ? 1 : 0, t.threadIndex || null);
       t.messages.forEach((m, i) => {
+        const meta = Object.fromEntries(Object.entries(m).filter(([k]) => !MESSAGE_COLUMNS.has(k)));
         msg.run(m.messageId, t.id, i, m.direction, m.from || '', m.fromName || '',
-          JSON.stringify(m.to || []), JSON.stringify(m.cc || []), m.subject || '', m.body || '', m.date || '');
+          JSON.stringify(m.to || []), JSON.stringify(m.cc || []), m.subject || '', m.body || '', m.date || '',
+          Object.keys(meta).length ? JSON.stringify(meta) : null);
         (m.attachments || []).forEach((a, k) =>
           att.run(t.id, i, k, a.filename || '', a.contentType || '', a.size || 0, a.kind || '', a.status || '',
-            a.text || '', a.truncated ? 1 : 0, a.error || '')
+            a.text || '', a.truncated ? 1 : 0, a.error || '', a.spec ? JSON.stringify(a.spec) : null, a.sent ? 1 : 0)
         );
       });
     }
+
+    const ob = db.prepare('INSERT INTO outbox VALUES (?, ?)');
+    (data.outbox || []).forEach((d, i) => ob.run(i, JSON.stringify(d)));
+    const inj = db.prepare('INSERT INTO injects VALUES (?, ?)');
+    (data.injects || []).forEach((x, i) => inj.run(i, JSON.stringify(x)));
+    const state = db.prepare('INSERT INTO state VALUES (?, ?)');
+    const ex = data.exercise || {};
+    // The clock is saved paused, with the time it had reached.
+    const running = ex.runningSince ? (Date.now() - ex.runningSince) * (Number(data.settings.scenario && data.settings.scenario.pace) || 1) : 0;
+    state.run('exercise', JSON.stringify({ elapsedMs: (ex.elapsedMs || 0) + running, runningSince: null, startedAt: ex.startedAt || null }));
+    state.run('dkimKeys', JSON.stringify(data.dkimKeys || {}));
 
     // Jobs keep the time they had left, so a loaded scenario resumes where it was.
     const now = Date.now();
@@ -159,20 +185,26 @@ function loadSenario(file) {
         .map((e) => ({ ...e })),
     };
 
+    const memory = (x) => { try { return x.memory ? JSON.parse(x.memory) : []; } catch { return []; } };
     const customers = db.prepare('SELECT * FROM customers ORDER BY position').all().map((x) => ({
       name: x.name, email: x.email, organisation: x.organisation, role: x.role, relationship: x.relationship,
-      personality: x.personality, writingStyle: x.writing_style, signature: x.signature,
+      personality: x.personality, writingStyle: x.writing_style, signature: x.signature, memory: memory(x),
     }));
 
     const threads = {};
     const msgIndex = {};
     for (const t of db.prepare('SELECT * FROM threads').all()) {
-      threads[t.id] = { id: t.id, subject: t.subject, customer: t.customer, updatedAt: t.updated_at, messages: [] };
+      threads[t.id] = { id: t.id, subject: t.subject, customer: t.customer, updatedAt: t.updated_at, messages: [], status: t.status || 'open' };
+      if (t.background) threads[t.id].background = true;
+      if (t.thread_index) threads[t.id].threadIndex = t.thread_index;
     }
     for (const m of db.prepare('SELECT * FROM messages ORDER BY thread_id, position').all()) {
       const t = threads[m.thread_id];
       if (!t) continue;
+      let meta = {};
+      try { meta = m.meta ? JSON.parse(m.meta) : {}; } catch { meta = {}; }
       t.messages.push({
+        ...meta,
         messageId: m.message_id, direction: m.direction, from: m.from_addr, fromName: m.from_name,
         to: JSON.parse(m.to_addrs || '[]'), cc: JSON.parse(m.cc_addrs || '[]'),
         subject: m.subject, body: m.body, date: m.date,
@@ -189,6 +221,8 @@ function loadSenario(file) {
         const item = { filename: a.filename, contentType: a.content_type, size: Number(a.size), kind: a.kind || null,
           status: a.status, text: a.text, truncated: !!a.truncated };
         if (a.error) item.error = a.error;
+        if (a.spec) { try { item.spec = JSON.parse(a.spec); } catch { /* ignore */ } }
+        if (a.sent) item.sent = true;
         (m.attachments = m.attachments || []).push(item);
       }
     }
@@ -196,9 +230,15 @@ function loadSenario(file) {
     const parties = hasTable('parties')
       ? db.prepare('SELECT * FROM parties ORDER BY position').all().map((x) => ({
         name: x.name, email: x.email, organisation: x.organisation, role: x.role, services: x.services,
-        personality: x.personality, writingStyle: x.writing_style, signature: x.signature,
+        personality: x.personality, writingStyle: x.writing_style, signature: x.signature, memory: memory(x),
       }))
       : [];
+    const json = (v, fallback) => { try { return JSON.parse(v); } catch { return fallback; } };
+    const outbox = hasTable('outbox') ? db.prepare('SELECT draft FROM outbox ORDER BY position').all().map((r) => json(r.draft, null)).filter(Boolean) : [];
+    const injects = hasTable('injects') ? db.prepare('SELECT inject FROM injects ORDER BY position').all().map((r) => json(r.inject, null)).filter(Boolean) : [];
+    const stateRows = hasTable('state') ? Object.fromEntries(db.prepare('SELECT key, value FROM state').all().map((r) => [r.key, json(r.value, null)])) : {};
+    const exercise = { elapsedMs: 0, runningSince: null, startedAt: null, ...(stateRows.exercise || {}), runningSince: null };
+    const dkimKeys = stateRows.dkimKeys || {};
 
     const now = Date.now();
     const pending = db.prepare('SELECT * FROM pending_jobs').all().map((j) => {
@@ -223,7 +263,7 @@ function loadSenario(file) {
     return {
       meta,
       includesCredentials: meta.includes_credentials === '1',
-      data: { settings, company, customers, parties, threads, msgIndex, sentIds, processedIds, pending, log },
+      data: { settings, company, customers, parties, outbox, injects, exercise, dkimKeys, threads, msgIndex, sentIds, processedIds, pending, log },
     };
   } catch (e) {
     throw new Error(`Could not open ${file}: ${/senario|newer/.test(e.message) ? e.message : 'not a valid .senario file (' + e.message + ')'}`);

@@ -1,0 +1,35 @@
+{
+  "id": "manufacturer",
+  "name": "Calder Precision Engineering",
+  "summary": "CNC machining subcontractor supplying aerospace and automotive customers. Set in 2012.",
+  "company": {
+    "name": "Calder Precision Engineering Ltd",
+    "domain": "calderprecision.local",
+    "operatingYear": 2012,
+    "datedEmails": true,
+    "description": "A 60-person CNC machining and fabrication subcontractor in Halifax, AS9100 and ISO 9001 certified, making precision parts for aerospace, automotive and food-machinery customers. Customers send purchase orders and drawings, chase deliveries, raise quality non-conformances and query invoices. Steel and aluminium prices have risen sharply, a 5-axis machine has been down for a week, and a major automotive customer is pushing for a 3% price reduction.",
+    "employees": [
+      { "name": "Andrew Calder", "email": "andrew.calder@calderprecision.local", "role": "Managing Director", "responsibilities": "Key accounts, pricing decisions, escalations" },
+      { "name": "Joanne Pearce", "email": "joanne.pearce@calderprecision.local", "role": "Sales & Estimating Manager", "responsibilities": "Quotes, RFQs, new customers, price changes" },
+      { "name": "Ryan Holt", "email": "ryan.holt@calderprecision.local", "role": "Production Planner", "responsibilities": "Delivery dates, order progress, capacity" },
+      { "name": "Mei Lin", "email": "mei.lin@calderprecision.local", "role": "Quality Manager", "responsibilities": "Non-conformances, CofCs, FAIRs, audits" },
+      { "name": "Purchasing", "email": "purchasing@calderprecision.local", "role": "Purchasing", "responsibilities": "Raw material, tooling and subcontract treatments" },
+      { "name": "Sales Ledger", "email": "accounts@calderprecision.local", "role": "Accounts", "responsibilities": "Invoices, statements, credit control" }
+    ]
+  },
+  "customers": [
+    { "name": "Steve Bramley", "email": "s.bramley@aerofab.local", "organisation": "AeroFab Systems", "role": "Senior Buyer", "relationship": "Aerospace bracket assemblies on a schedule agreement since 2008", "personality": "Demanding about on-time delivery", "writingStyle": "Formal, PO and part numbers", "signature": "Steve Bramley\nSenior Buyer, AeroFab Systems\nTel 01422 900 300" },
+    { "name": "Karen Walsh", "email": "k.walsh@aerofab.local", "organisation": "AeroFab Systems", "role": "Supplier Quality Engineer", "relationship": "Handles supplier quality for AeroFab", "personality": "Methodical, procedural", "writingStyle": "8D and NCR references", "signature": "Karen Walsh\nSupplier Quality Engineer, AeroFab Systems" },
+    { "name": "Piotr Nowak", "email": "piotr.nowak@midlandsautoparts.local", "organisation": "Midlands Auto Parts", "role": "Commodity Manager", "relationship": "High-volume automotive turned parts; wants cost-downs", "personality": "Tough negotiator", "writingStyle": "Direct, numbers-heavy", "signature": "Piotr Nowak\nCommodity Manager, Midlands Auto Parts" },
+    { "name": "Hannah Brooks", "email": "hannah@brooksfoodmachinery.local", "organisation": "Brooks Food Machinery", "role": "Design Engineer", "relationship": "Small batches of stainless food-grade parts", "personality": "Friendly, often changes drawings", "writingStyle": "Casual, sends revisions", "signature": "Hannah Brooks\nDesign Engineer, Brooks Food Machinery" }
+  ],
+  "parties": [
+    { "name": "Sales Office", "email": "sales@pennineservices-steel.local", "organisation": "Pennine Steel Stockholders", "role": "Steel stockholder", "services": "Bar, plate and tube in carbon and stainless steel, cut to size", "personality": "Matter-of-fact", "writingStyle": "Prices per kg, lead times", "signature": "Sales Office\nPennine Steel Stockholders" },
+    { "name": "Field Service", "email": "service@machinecareuk.local", "organisation": "MachineCare UK", "role": "Machine tool service engineer", "services": "Service contract for the 5-axis machining centre and lathes", "personality": "Technical", "writingStyle": "Job numbers, parts ETAs", "signature": "Field Service Desk\nMachineCare UK" }
+  ],
+  "injects": [
+    { "at": 20, "title": "Late delivery", "type": "email", "from": "s.bramley@aerofab.local", "to": ["ryan.holt@calderprecision.local"], "mode": "brief", "body": "PO 4500123 brackets were due yesterday and your line is now holding up AeroFab's assembly; demand a firm delivery date today." },
+    { "at": 60, "title": "Non-conformance", "type": "email", "from": "k.walsh@aerofab.local", "to": ["mei.lin@calderprecision.local"], "mode": "brief", "body": "Raise NCR-2231: 12 of 50 parts in the last delivery have a bore out of tolerance; request containment and an 8D within 48 hours." },
+    { "at": 150, "title": "Price-down demand", "type": "email", "from": "piotr.nowak@midlandsautoparts.local", "to": ["joanne.pearce@calderprecision.local"], "mode": "brief", "body": "Formally request a 3% price reduction on all part numbers from next quarter, citing competitor quotes." }
+  ]
+}

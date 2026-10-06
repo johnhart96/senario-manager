@@ -92,6 +92,8 @@ async function startListener({ mail, listener, acceptRecipient, onMessage, log }
     disabledCommands: ['AUTH'].concat(listener.offerStartTls ? [] : ['STARTTLS']),
     size: 25 * 1024 * 1024,
     logger: false,
+    // On shutdown, give open connections 2 s (not the default 30 s) before closing them.
+    closeTimeout: 2000,
     onConnect(session, cb) {
       const ip = normIp(session.remoteAddress);
       if (!allowed.has(ip)) {

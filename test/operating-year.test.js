@@ -45,7 +45,7 @@ const sink = new SMTPServer({ authOptional: true, disabledCommands: ['STARTTLS']
     openai: { apiKey: 'x', model: 'm', baseURL: 'http://127.0.0.1:2598/v1' },
     mail: { ...store.settings.mail, host: '127.0.0.1', smtpPort: 2596, smtpSecurity: 'none' },
     listener: { ...store.settings.listener, bindAddress: '127.0.0.1', port: 2597, offerStartTls: false },
-    scenario: { ...store.settings.scenario, replyDelayMinSec: 0, replyDelayMaxSec: 0, followUpEnabled: false, minIntervalMin: 600, maxIntervalMin: 600 } });
+    scenario: { ...store.settings.scenario, oooChance: 0, backgroundEnabled: false, replyDelayMinSec: 0, replyDelayMaxSec: 0, followUpEnabled: false, minIntervalMin: 600, maxIntervalMin: 600 } });
   store.setCompany({ name: 'Company X', domain: 'companyx.local', description: 'Sells lamps.', operatingYear: 2005, datedEmails: true,
     employees: [{ name: 'Ann Accounts', email: 'accounts@companyx.local', role: 'Accounts', responsibilities: 'quotes' }] });
   store.setCustomers([{ name: 'Carl Customer', email: 'carl@bright.local', organisation: 'Bright', role: 'Buyer' }]);
@@ -83,7 +83,8 @@ const sink = new SMTPServer({ authOptional: true, disabledCommands: ['STARTTLS']
   assert.strictEqual(threadDates.length, 2);
   for (const d of threadDates) assert.match(d, /2005/, 'thread dates shown in 2005');
   const reply = await simpleParser(captured[captured.length - 1]);
-  assert.match(reply.text, /On \w+, \d+ \w+ 2005 at [\d:]+, accounts@companyx\.local wrote:/);
+  // Either quoting style, depending on the customer's mail program; dates in 2005 both ways.
+  assert.match(reply.text, /(On \w+, \d+ \w+ 2005 at [\d:]+, accounts@companyx\.local wrote:|-----Original Message-----\nFrom: accounts@companyx\.local\nSent: \w+, \d+ \w+ 2005)/);
   const rec = Object.values(store.data.threads)[0].messages.find((m) => m.messageId === '<y3@x>');
   assert.ok(Math.abs(Date.parse(rec.date) - Date.now()) < 60000, 'stored with real receipt time, not the 2005 header');
   console.log('OK 3: thread dates in prompt =', threadDates.join(' / '));
