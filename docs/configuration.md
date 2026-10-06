@@ -50,6 +50,7 @@ Changing these settings, or the mail server address, rebinds it immediately.
 | Setting | Default | Description |
 |---|---|---|
 | Fictional TLD for customer domains | `local` | Generated customers get domains like `brightfoods.local`. |
+| Email format | HTML | **HTML (with plain-text copy)** sends `multipart/alternative` messages, as real mail clients do. **Plain text only** sends text. See [Email format](user-guide.md#email-format). |
 | Extra guidance for customers | *(empty)* | Free text added to every customer and party prompt. See [extra guidance](user-guide.md#extra-guidance). |
 | New customer email every … to … (min) | `20` – `90` | Random interval between new conversations *(scenario time)*. |
 | Customer reply delay … to … (sec) | `900` – `7200` | How long customers and parties take to answer (15 min – 2 h) *(scenario time)*. |

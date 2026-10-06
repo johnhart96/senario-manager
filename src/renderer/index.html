@@ -200,6 +200,12 @@
         <h2>Scenario behaviour</h2>
         <div class="grid3">
           <div><label>Fictional TLD for customer domains</label><input data-k="scenario.customerTld" /></div>
+          <div><label>Email format</label>
+            <select data-k="scenario.emailFormat">
+              <option value="html">HTML (with plain-text copy)</option>
+              <option value="text">Plain text only</option>
+            </select>
+          </div>
         </div>
         <label>Extra guidance for customers (optional)</label>
         <textarea data-k="scenario.guidance" rows="3" placeholder="e.g. A product recall is under way this week; several customers are unhappy about late deliveries."></textarea>

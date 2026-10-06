@@ -13,6 +13,7 @@ tabs: pace, follow-ups, attachments, the operating year and scenario files.
 - [Conversations](#conversations)
 - [Pace](#pace)
 - [Follow-ups](#follow-ups)
+- [Email format](#email-format)
 - [Attachments](#attachments)
 - [Operating year](#operating-year)
 - [Saving, opening and auto-save](#saving-opening-and-auto-save)
@@ -194,6 +195,24 @@ Follow-ups**, 4–24 hours of scenario time by default, at most 2 chases per ema
 Each chase waits a little longer than the one before. Any reply from the company cancels pending
 chases on that thread. Customers don't chase when they aren't waiting for anything, for example
 after their own "thanks, all sorted".
+
+## Email format
+
+By default, emails are sent as **HTML with a plain-text copy** (`multipart/alternative`), the
+way Outlook, Gmail and Apple Mail send them. Mail clients show the HTML, and anything text-only
+falls back to the copy. Switch to *Plain text only* under **Settings → Scenario behaviour →
+Email format**.
+
+The HTML is built by the app from the AI's text, never written by the AI, and everything is
+escaped. To make the inbox look like many different people with different mail clients:
+
+- **Each customer and party has a consistent font.** It's picked from fonts that existed in the
+  [operating year](#operating-year). A 2005 scenario uses Arial, Tahoma, Verdana, Times New Roman
+  and Trebuchet MS; Calibri only appears from 2007, Aptos from 2023.
+- **Lists:** lines starting with `-` or `1.` become real bulleted or numbered lists.
+- **Replies quote the earlier message** in one of two styles, again fixed per sender:
+  Outlook's *From / Sent / To / Subject* block under a blue rule (with `-----Original
+  Message-----` in the text copy), or *"On …, … wrote:"* with an indented quote.
 
 ## Attachments
 

@@ -31,6 +31,8 @@ the company's mail server, and it plays the outside world:
   and they'll respond to the actual prices, line items and dates.
 - **External parties** such as your accountant, IT contractor or suppliers answer when your
   employees email them, but never start conversations themselves.
+- **Real-looking HTML email**, with a consistent font and quoting style per sender (plain text
+  is optional).
 - **Unanswered emails get chased:** a polite nudge first, then firmer, then escalation to a manager.
 - **Any era:** set the company's operating year (e.g. 2005) and dates, technology, prices and
   events all fit that year.

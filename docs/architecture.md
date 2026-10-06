@@ -19,6 +19,7 @@ src/
 └── core/                   No Electron UI code: everything here is testable in plain Node
     ├── engine.js           The scenario engine: scheduling, replies, follow-ups, inbound mail
     ├── ai.js               OpenAI prompts (customer email, reply, follow-up, image transcription)
+    ├── compose.js          Builds outgoing text + HTML bodies, fonts and quoting per sender
     ├── mail.js             Outbound SMTP and the inbound SMTP listener, locked to one server
     ├── attachments.js      Attachment type detection; runs the parser worker; prompt formatting
     ├── extract-worker.js   Worker thread that turns one file into text
@@ -79,8 +80,10 @@ flowchart TB
 2. `generateEvent()` picks a random **customer** (never a party) and calls
    `ai.writeCustomerEmail()`. The model chooses the recipient from the employee list. The engine
    validates it, falling back to a random employee if needed.
-3. `deliver()` checks every recipient is on a company domain, creates the `Message-ID`, records
-   it in `sentIds`, sends via `mail.sendMail()`, and adds the message to a thread.
+3. `deliver()` checks every recipient is on a company domain, builds the body with
+   `compose()` (plain text plus, by default, an HTML alternative, quoting the previous message
+   when replying), creates the `Message-ID`, records it in `sentIds`, sends via
+   `mail.sendMail()`, and adds the message to a thread. Threads store only the new plain text.
 4. A follow-up job is scheduled in case nobody answers.
 
 ### Inbound: an employee replies
@@ -178,6 +181,8 @@ Changes must keep these true. The tests check them.
    (null sender, `mailer-daemon`) or to `Auto-Submitted`/`Precedence: bulk` mail.
 5. **Untrusted input.** Attachment parsing stays in the time- and memory-limited worker.
    Attachment text is passed to the model as data. Renderer output is always HTML-escaped.
+   Outgoing HTML is built by `compose.js` from plain text with every character escaped.
+   Model output never becomes markup.
 
 ## Tests
 
@@ -188,6 +193,7 @@ Changes must keep these true. The tests check them.
 | `e2e.test.js` | Full loop against a local SMTP sink and the real listener: sending, replies, threading, refusals, auto-replies, follow-ups, pace, attachments |
 | `operating-year.test.js` | Prompts, `Date:` headers and quoted dates in a past year, sent through a fake OpenAI server |
 | `parties.test.js` | Parties never initiate, supplier framing, optional chasing, persistence |
+| `html-email.test.js` | HTML composition: escaping, lists, era fonts, both quoting styles, multipart/alternative over SMTP, plain-text mode |
 | `attachments.test.js` | Every supported format, plus corrupt and unsupported files and inline logos |
 | `senario-file.test.js` | Save/load round trip, credentials, overwrite, invalid files |
 

@@ -6,6 +6,7 @@ const mail = require('./mail');
 const ai = require('./ai');
 const { extractAttachments } = require('./attachments');
 const clock = require('./clock');
+const { compose } = require('./compose');
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const randBetween = (a, b) => a + Math.random() * Math.max(0, b - a);
@@ -33,12 +34,6 @@ function stripQuoted(text) {
     out.push(line);
   }
   return out.join('\n').trim();
-}
-
-function quote(msg, year) {
-  const body = msg.body.split('\n').map((l) => '> ' + l).join('\n');
-  const when = clock.formatScenario(msg.date, year);
-  return `\n\nOn ${when}, ${msg.fromName ? `${msg.fromName} <${msg.from}>` : msg.from} wrote:\n${body}`;
 }
 
 // Human-friendly duration, e.g. "under a minute", "~25 min", "~3 hours", "~2 days".
@@ -292,7 +287,8 @@ class Engine extends EventEmitter {
 
   // ---------- outgoing (customer → company) ----------
 
-  async deliver({ customer, to, cc = [], subject, body, threadId, inReplyTo, references = [] }) {
+  // body is the new text only; quoted is the thread message being replied to (if any).
+  async deliver({ customer, to, cc = [], subject, body, quoted = null, threadId, inReplyTo, references = [] }) {
     const allowed = this.companyDomains();
     const blocked = [...to, ...cc].filter((e) => !allowed.has(domainOf(e)));
     if (blocked.length) {
@@ -302,6 +298,16 @@ class Engine extends EventEmitter {
     const staff = this.employeeMap();
     const fmt = (e) => (staff.get(e) ? { name: staff.get(e).name, address: e } : e);
     const date = new Date();
+    const people = new Map([...staff].map(([e, p]) => [e, p.name]));
+    for (const [e, c] of this.contactMap()) people.set(e, c.name);
+    const content = compose({
+      body,
+      sender: customer,
+      quoted,
+      format: this.settings.scenario.emailFormat === 'text' ? 'text' : 'html',
+      year: this.year,
+      nameOf: (e) => people.get(lc(e)) || '',
+    });
     this.store.data.sentIds[messageId] = Date.now();
     await mail.sendMail(this.settings.mail, {
       messageId,
@@ -311,7 +317,8 @@ class Engine extends EventEmitter {
       to: to.map(fmt),
       cc: cc.map(fmt),
       subject,
-      text: body,
+      text: content.text,
+      html: content.html,
       inReplyTo: inReplyTo || undefined,
       references: references.length ? references.join(' ') : undefined,
     });
@@ -323,7 +330,7 @@ class Engine extends EventEmitter {
       to,
       cc,
       subject,
-      body: stripQuoted(body),
+      body: String(body || '').trim(),
       date: date.toISOString(),
       direction: 'out',
     };
@@ -601,7 +608,8 @@ class Engine extends EventEmitter {
         to: [incoming.from],
         cc: [...ccSet],
         subject: 'Re: ' + baseSubject(incoming.subject),
-        body: r.body.trim() + quote(incoming, this.year),
+        body: r.body,
+        quoted: incoming,
         threadId: thread.id,
         inReplyTo: incoming.messageId,
         references: refs,
@@ -652,7 +660,8 @@ class Engine extends EventEmitter {
         to,
         cc,
         subject: 'Re: ' + baseSubject(last.subject),
-        body: r.body.trim() + quote(last, this.year),
+        body: r.body,
+        quoted: last,
         threadId: thread.id,
         inReplyTo: last.messageId,
         references: thread.messages.map((m) => m.messageId).slice(-10),

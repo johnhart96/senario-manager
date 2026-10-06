@@ -36,6 +36,7 @@ const DEFAULT_SETTINGS = {
   scenario: {
     customerTld: 'local', // fictional TLD for customer domains
     guidance: '', // extra instructions for the customer personas
+    emailFormat: 'html', // 'html' (HTML + plain-text alternative) or 'text'
     minIntervalMin: 20,
     maxIntervalMin: 90,
     replyDelayMinSec: 900,

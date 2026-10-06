@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **HTML email** (now the default): messages are sent as HTML with a plain-text alternative,
+  like real mail clients. Each customer and party has a consistent, era-appropriate font and
+  quoting style (Outlook *From/Sent/To/Subject* block or *"On … wrote:"*), and lists are
+  formatted. *Settings → Scenario behaviour → Email format* switches back to plain text.
+
 ## [0.1.0] - 2026-10-06
 
 First public release.
