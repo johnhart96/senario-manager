@@ -1,7 +1,7 @@
 # Installation
 
 Download the file for your system from the
-[latest release](https://github.com/YOUR-USER/senario-manager/releases/latest).
+[latest release](https://github.com/johnhart96/senario-manager/releases/latest).
 
 | System | File | Notes |
 |---|---|---|
@@ -106,7 +106,7 @@ sudo firewall-cmd --reload
 Requires [Node.js](https://nodejs.org) 24 or later and git.
 
 ```bash
-git clone https://github.com/YOUR-USER/senario-manager.git
+git clone https://github.com/johnhart96/senario-manager.git
 cd senario-manager
 npm install
 npm start

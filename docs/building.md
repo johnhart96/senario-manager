@@ -53,7 +53,7 @@ It runs when you push a `v*` tag, or manually from **Actions → Build → Run w
    git push origin main --tags
    ```
 3. When the workflow finishes, download the three artifacts and attach the installers to a new
-   [GitHub release](https://github.com/YOUR-USER/senario-manager/releases/new) for the tag.
+   [GitHub release](https://github.com/johnhart96/senario-manager/releases/new) for the tag.
 
 ## Code signing
 
@@ -82,10 +82,11 @@ electron-builder configuration. See the
 | `npm run screenshots` | `docs/images/*.png` from a fictional demo scenario. Your own data is never touched. Real IP addresses are replaced with `10.0.0.x` examples. |
 | `npm run licenses` | `docs/third-party-licenses.md` from the production dependency tree. Run it after changing dependencies. |
 
-## Before your first public release
+## If the repository moves
 
-Replace the `YOUR-USER` placeholder with your GitHub user or organisation in:
+The repository address (`github.com/johnhart96/senario-manager`) appears in these files. Update
+them all if the repository is renamed or transferred:
 
 - `package.json` (`homepage`, `repository`, `bugs`)
-- `README.md`, `CONTRIBUTING.md`, `SECURITY.md` and `docs/*.md` (search for `YOUR-USER`)
+- `README.md`, `CONTRIBUTING.md`, `SECURITY.md` and `docs/*.md` (search for `johnhart96`)
 - `.github/ISSUE_TEMPLATE/config.yml`

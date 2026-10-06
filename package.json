@@ -6,13 +6,13 @@
     "name": "John Hart",
     "email": "john@hart.london"
   },
-  "homepage": "https://github.com/YOUR-USER/senario-manager#readme",
+  "homepage": "https://github.com/johnhart96/senario-manager#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/YOUR-USER/senario-manager.git"
+    "url": "git+https://github.com/johnhart96/senario-manager.git"
   },
   "bugs": {
-    "url": "https://github.com/YOUR-USER/senario-manager/issues"
+    "url": "https://github.com/johnhart96/senario-manager/issues"
   },
   "main": "src/main.js",
   "desktopName": "senario-manager.desktop",

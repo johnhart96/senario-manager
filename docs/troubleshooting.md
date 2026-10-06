@@ -156,6 +156,6 @@ the customer still answers it.
 
 ## Still stuck?
 
-[Open an issue](https://github.com/YOUR-USER/senario-manager/issues/new/choose) with your OS,
+[Open an issue](https://github.com/johnhart96/senario-manager/issues/new/choose) with your OS,
 app version, mail server type and the relevant Activity lines. Remove any real addresses, keys
 or passwords first.

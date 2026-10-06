@@ -5,7 +5,7 @@
 Please **don't** open a public issue for security problems. Instead, use GitHub's private
 vulnerability reporting: go to the repository's **Security** tab and click **Report a
 vulnerability**
-([direct link](https://github.com/YOUR-USER/senario-manager/security/advisories/new)).
+([direct link](https://github.com/johnhart96/senario-manager/security/advisories/new)).
 
 Include what you found, how to reproduce it, and the impact you expect. You should get a
 response within a week. Fixes are released as soon as practical and credited to you unless you

@@ -35,5 +35,5 @@ First public release.
 - **Installers** for Windows (NSIS, portable), macOS (dmg, zip) and Linux (AppImage, deb, rpm)
   via electron-builder. `.senario` files open in the app when double-clicked.
 
-[Unreleased]: https://github.com/YOUR-USER/senario-manager/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/YOUR-USER/senario-manager/releases/tag/v0.1.0
+[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/johnhart96/senario-manager/releases/tag/v0.1.0

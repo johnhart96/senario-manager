@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/YOUR-USER/senario-manager/releases/latest">Download</a> ·
+  <a href="https://github.com/johnhart96/senario-manager/releases/latest">Download</a> ·
   <a href="docs/user-guide.md">User guide</a> ·
   <a href="docs/mail-server-setup.md">Mail server setup</a> ·
   <a href="docs/troubleshooting.md">Troubleshooting</a>
@@ -73,10 +73,10 @@ flowchart LR
 ## Quick start
 
 1. **Install:** download the installer for your OS from
-   [Releases](https://github.com/YOUR-USER/senario-manager/releases/latest)
+   [Releases](https://github.com/johnhart96/senario-manager/releases/latest)
    ([installation notes](docs/installation.md)), or run from source:
    ```bash
-   git clone https://github.com/YOUR-USER/senario-manager.git
+   git clone https://github.com/johnhart96/senario-manager.git
    cd senario-manager
    npm install
    npm start

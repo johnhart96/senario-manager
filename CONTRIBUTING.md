@@ -5,7 +5,7 @@ pull requests are all welcome.
 
 ## Reporting bugs and suggesting features
 
-Use [GitHub issues](https://github.com/YOUR-USER/senario-manager/issues/new/choose). The
+Use [GitHub issues](https://github.com/johnhart96/senario-manager/issues/new/choose). The
 templates ask for what's useful: OS, app version, mail server type and the relevant
 **Activity** lines.
 
@@ -15,7 +15,7 @@ you wouldn't publish. **Security problems** go through [SECURITY.md](SECURITY.md
 ## Development setup
 
 ```bash
-git clone https://github.com/YOUR-USER/senario-manager.git
+git clone https://github.com/johnhart96/senario-manager.git
 cd senario-manager
 npm install
 npm start
