@@ -14,5 +14,13 @@ const { saveSenario, loadSenario } = require(ASAR + '/src/core/senario-file');
   saveSenario(f, { settings: { openai: {}, mail: {} }, company: { name: 'P', employees: [] }, customers: [], parties: [], threads: {}, pending: [] }, {});
   assert.strictEqual(loadSenario(f).data.company.name, 'P');
   require('fs').rmSync(f);
-  console.log('PACKAGED OK: worker parsers + sqlite work from app.asar');
+  // Templates and document generation also load from inside the archive.
+  const templates = require(ASAR + '/src/core/templates');
+  assert.strictEqual(templates.list().length, 6, 'all templates packaged');
+  const documents = require(ASAR + '/src/core/documents');
+  for (const [format, year] of [['pdf', 2026], ['word', 2026], ['word', 2005], ['excel', 2005]]) {
+    const d = await documents.generate({ format, title: 'Invoice', table: { columns: ['Item'], rows: [['x']] } }, { name: 'Org', year, now: new Date() });
+    assert.ok(d.content.length > 200, `${format} ${year} generated`);
+  }
+  console.log('PACKAGED OK: worker parsers, sqlite, templates and document generation work from app.asar');
 })().catch((e) => { console.error('FAIL', e); process.exit(1); });

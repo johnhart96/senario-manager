@@ -16,6 +16,7 @@ Where customer and party emails are submitted.
 | Accept self-signed certificates | on | Skip certificate validation. Typical for lab CAs. |
 | Server requires authentication | off | Log in before sending. |
 | Username / Password | *(empty)* | Used only when authentication is on. The password is encrypted at rest. |
+| Sign customer and party email with DKIM | off | Signs outgoing mail with a key per sender domain (selector `senario`). **Show DKIM DNS records** lists the TXT records to publish. DKIM dates from 2007. |
 
 ## Reply listener (inbound)
 
@@ -50,6 +51,9 @@ Changing these settings, or the mail server address, rebinds it immediately.
 | Setting | Default | Description |
 |---|---|---|
 | Fictional TLD for customer domains | `local` | Generated customers get domains like `brightfoods.local`. |
+| Customers can attach documents | on | Lets customers and parties attach generated PDF, Word or Excel files (formats of the operating year). |
+| Customers can send meeting invitations | on | Lets them send calendar invitations when proposing a meeting. |
+| Out-of-office chance (0–1) | `0.03` | Chance that a customer is away when an employee writes, sending an automatic reply first and the real one days later. |
 | Email format | HTML | **HTML (with plain-text copy)** sends `multipart/alternative` messages, as real mail clients do. **Plain text only** sends text. See [Email format](user-guide.md#email-format). |
 | Extra guidance for customers | *(empty)* | Free text added to every customer and party prompt. See [extra guidance](user-guide.md#extra-guidance). |
 | New customer email every … to … (min) | `20` – `90` | Random interval between new conversations *(scenario time)*. |
@@ -65,6 +69,19 @@ Changing these settings, or the mail server address, rebinds it immediately.
 | Chase after … to … (hours) | `4` – `24` | Wait before the first chase *(scenario time)*. Each later chase waits 50% longer. |
 | Max follow-ups per email | `2` | Chases per unanswered email. |
 | External parties also chase … | off | Lets parties chase questions they asked that went unanswered. |
+
+## Background mail
+
+| Setting | Default | Description |
+|---|---|---|
+| Send newsletters and automated notifications | on | Mail that needs no reply, from fictional senders on the customer TLD. |
+| One every … to … (min) | `45` – `180` | Interval between background emails *(scenario time)*. |
+
+## Outbox
+
+| Setting | Default | Description |
+|---|---|---|
+| Hold AI-written emails for review | off | New emails, replies and chases wait in the Outbox until sent or discarded. Also stored as `scenario.reviewBeforeSend`. |
 
 ## Pace (sidebar)
 

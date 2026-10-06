@@ -4,6 +4,7 @@ This guide walks through Senario Manager tab by tab, then covers the features th
 tabs: pace, follow-ups, attachments, the operating year and scenario files.
 
 - [The window](#the-window)
+- [Starting from a template](#starting-from-a-template)
 - [Company](#company)
 - [Customers](#customers)
 - [Parties](#parties)
@@ -11,6 +12,10 @@ tabs: pace, follow-ups, attachments, the operating year and scenario files.
 - [Running a scenario](#running-a-scenario)
 - [Activity](#activity)
 - [Conversations](#conversations)
+- [Injects](#injects)
+- [Outbox](#outbox)
+- [Report](#report)
+- [How realistic it gets](#how-realistic-it-gets)
 - [Pace](#pace)
 - [Follow-ups](#follow-ups)
 - [Email format](#email-format)
@@ -23,14 +28,36 @@ tabs: pace, follow-ups, attachments, the operating year and scenario files.
 
 The sidebar is always visible. From top to bottom:
 
-- **File:** the open `.senario` file, auto-save status, and **Open / Save / Save as**.
-- **Tabs:** Company, Customers, Parties, Settings, Activity, Conversations.
+- **File:** the open `.senario` file, auto-save status, and **New / Open / Save / Save as**.
+- **Tabs:** set-up tabs (Company, Customers, Parties, Injects, Settings), then run-time tabs
+  (Activity, Conversations, Outbox, Report). Outbox shows a count of emails waiting for review.
 - **Scenario date:** shown when the company has an [operating year](#operating-year).
 - **Listening:** whether the reply listener is up, and on which address and port.
-- **Running / Stopped:** the scenario state, the time of the next new email, and how many replies
-  and chases are queued.
+- **Running / Stopped:** the scenario state, the [exercise clock](#injects) (`T+1:36`), the time
+  of the next new email, and how many replies and chases are queued.
 - **Customer pace:** the [pace slider](#pace).
 - **Start / Stop scenario** (green / red).
+
+## Starting from a template
+
+Click **New** (**Ctrl+N**) to start from a ready-made scenario, or from a blank one.
+
+![Template picker](images/templates.png)
+
+| Template | Company | Year |
+|---|---|---|
+| Brightline IT Services | Managed IT service provider: tickets, outages, a phishing scare | present |
+| Calder Precision Engineering | CNC machining subcontractor: late orders, non-conformances, price-downs | 2012 |
+| Greenbank Medical Practice | GP surgery: prescriptions, care homes, a failing phone system | present |
+| Harrow & Pike Solicitors | High-street law firm: delayed completions, client account checks | present |
+| Northwind Stage Lighting | Lighting hire: quotes, faults, invoice disputes | 2005 |
+| St Aldric's Academy | Secondary school: parents, trips, a new payment system | present |
+
+Each one has employees, customers (including organisations with more than one contact),
+external parties and a few example [injects](#injects). Edit anything you like.
+
+The new scenario is **unsaved**. The previously open `.senario` file keeps its last saved state
+and is never overwritten. Mail server, OpenAI and timing settings carry over.
 
 ## Company
 
@@ -61,6 +88,10 @@ Customers are the people who start conversations. They're played by OpenAI.
 - Each customer has a name, email, organisation, job title, relationship to the company,
   personality, writing style and signature. All of it is editable. Click a customer to expand it.
 - **Add manually** creates a blank customer.
+- **In organisations of up to 2 / 3** generates several contacts per organisation, sharing a
+  domain, such as a buyer and their manager. See [colleagues](#colleagues-and-escalation).
+- **Remembers about the company** is the customer's [memory](#memory) of earlier dealings. It's
+  filled in automatically as conversations happen, and you can edit it.
 - Click **Save customers** after editing.
 
 Customer email domains use the fictional TLD set in **Settings → Scenario behaviour** (`.local`
@@ -168,6 +199,142 @@ number of attachments.
 
 Replies are matched to threads by their `In-Reply-To`/`References` headers. If a mail client
 drops those, the reply is matched by subject and customer instead.
+
+## Injects
+
+![Injects tab](images/injects.png)
+
+Injects are planned events on a timeline: what an exercise organiser would call a *master
+scenario events list*. Each one fires at a set time after the exercise starts.
+
+- **Email from a customer or party**, either:
+  - **written by the AI from a brief:** *"Complain that the delivery for order 4471 never
+    arrived and ask for a refund."* The customer writes it in their own voice, consistent
+    with past conversations, or
+  - **sent exactly as typed**, with your own subject and message.
+
+  Tick recipients, or leave them all unticked to let the AI pick the right person. Tick
+  *Waiting for an answer* if the sender should chase it.
+- **Change the scenario guidance**, replacing or adding to the [extra guidance](#extra-guidance)
+  every customer follows from then on. For example: *"A product recall is under way."*
+
+**The exercise clock** (`T+h:mm`) starts the first time you click **Start scenario**. It pauses
+when you stop, and runs in scenario time, so at 60× pace an hour passes in a minute. Each
+inject fires once its time is reached, then shows *Fired at T+…*. A failed inject shows the
+error; hover over *Failed* to read it.
+
+- **Fire now** sends an inject immediately, whatever its time.
+- **Reset clock** returns the clock to `T+0:00` and sets every inject back to pending, ready to
+  rerun the exercise.
+- Click **Save injects** after editing. Injects are saved in `.senario` files and templates.
+
+Injects are never held in the [Outbox](#outbox), because they're already planned.
+
+## Outbox
+
+![Outbox tab](images/outbox.png)
+
+Tick **Hold AI-written emails here for review** to approve every new email, reply and chase
+before it goes out. For each draft you can:
+
+- change the recipients, subject or message
+- leave out its attached document or meeting invitation
+- **Send** or **Discard** it
+
+Follow-ups are only scheduled once an email is actually sent. Injects, out-of-office replies and
+background mail are never held.
+
+**Write an email** lets you send a message yourself as any customer or party: start a new
+conversation, or reply in an existing one, quoted like a normal reply. It always goes
+straight out. Tick *Waiting for an answer* if the sender should chase it.
+
+## Report
+
+![Report tab](images/report.png)
+
+How each employee handled the mail sent to them:
+
+| Column | Meaning |
+|---|---|
+| Emails | Customer and party emails addressed to them |
+| Answered | How many they replied to |
+| Median / slowest response | Time from the email to their reply, on the exercise clock |
+| Waiting / oldest waiting | Emails nobody at the company has answered yet, and the oldest one's age |
+| Chases | Follow-ups their silence caused |
+| Resolved | Conversations they handled that ended with the customer satisfied |
+
+The conversation table shows who handled each thread, its first response time, and whether it's
+resolved or waiting on the company or the customer. Background mail isn't included.
+
+Times are measured in scenario time: a reply that took 2 real minutes at 60× pace counts as
+2 hours. **Export HTML** saves a self-contained page, and **Export PDF** a landscape A4 PDF, for
+the debrief.
+
+## How realistic it gets
+
+### Documents and meeting invitations
+
+Customers and parties sometimes attach a document when a real person would: a purchase order,
+remittance advice, specification, signed form, price list or statement. It's a genuine file in
+the format of the [operating year](#operating-year):
+
+| Type | Before 2007 | From 2007 |
+|---|---|---|
+| Word | `.doc` (RTF content, opens in Word) | `.docx` |
+| Excel | `.xls` | `.xlsx` |
+| PDF | `.pdf` | `.pdf` |
+
+When proposing a meeting at a specific time, they send a real **calendar invitation**, which
+shows as an Accept/Decline invite in Outlook and other clients. If an employee accepts, no
+reply is needed. If they decline, the customer answers. Both are shown in Conversations, and
+you can **Save** any generated document from there. Switch either off under **Settings →
+Scenario behaviour**.
+
+### Colleagues and escalation
+
+Customers at the same organisation (the same email domain) know each other. They copy each other
+in where natural, and on the second chase a more senior colleague may take over: *"I'm
+writing as Helen's manager…"*, copying the original sender. Employees can reply to either.
+
+### Memory
+
+After each email a customer or party may note something worth remembering, such as *"Asked
+for all deliveries before 9am"* or *"Delivery for Blithe Spirit arrived two hours late"*. It's
+dated in the scenario year, fed into every later email they write, and editable on the Customers
+and Parties tabs (last 10 notes).
+
+### Out-of-office replies
+
+With a small chance (**Settings → Scenario behaviour → Out-of-office chance**, 3% by default), a
+customer is away. An automatic reply goes out straight away, naming a colleague if they have
+one, in the style of their mail program: *"Out of Office AutoReply:"* in Outlook 2003-era
+scenarios, *"Automatic reply:"* later. Their real reply comes a few days later.
+
+### Background mail
+
+Real inboxes are mostly mail nobody answers. With **Settings → Background mail** on, employees
+also receive trade newsletters, supplier offers, order and delivery notifications, statements and
+system alerts, every 45–180 minutes by default. These come from fictional senders on the customer
+TLD, with proper bulk-mail headers (`Precedence: bulk`, `List-Unsubscribe`, `Auto-Submitted`), and
+newsletters use a branded HTML layout. They're never chased, and are hidden in Conversations unless
+you tick *Show background mail*. **Send one now** sends one immediately.
+
+### Mail headers
+
+Each customer and party has their own mail program, fixed for that person and fitting the year:
+
+- **2005:** Outlook 2003 and XP, Outlook Express, Thunderbird 1.0, Apple Mail, Lotus Notes or a
+  BlackBerry
+- **Today:** current Outlook, webmail, Apple Mail, iPhone or Thunderbird
+
+That decides the `X-Mailer`/`User-Agent` header, the shape of the `Message-ID`, Outlook's
+`Thread-Index`/`Thread-Topic`, *"Sent from my iPhone"* style sign-offs, and the quoting style.
+`Date:` headers carry the sender's local time zone offset.
+
+**DKIM:** tick **Settings → Scenario mail server → Sign customer and party email with DKIM**.
+The app generates a key for each customer and party domain, and **Show DKIM DNS records**
+lists the TXT records to publish on the scenario's DNS server. DKIM was introduced in 2007, so
+leave it off for earlier years.
 
 ## Pace
 
@@ -288,3 +455,5 @@ The format is plain SQLite. See [.senario files](senario-file-format.md).
 - **Start at a higher pace** to seed some history, then drop to real time for the exercise.
 - **Use extra guidance** to inject events mid-exercise ("a delivery van broke down this morning").
 - **Save a clean starting point** as a `.senario` file and reload it to rerun the same exercise.
+- **Plan the key moments as injects**, and let random traffic fill the gaps between them.
+- **Turn on review** for your first run, to see what the AI writes before trainees do.

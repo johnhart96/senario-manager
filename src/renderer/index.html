@@ -19,6 +19,7 @@
         <span id="fileStatus" class="muted small"></span>
       </div>
       <div class="file-actions">
+        <button id="newScenario" title="Start a new scenario from a template (Ctrl+N)">New</button>
         <button id="openFile" title="Open a .senario file (Ctrl+O)">Open</button>
         <button id="saveFile" title="Save (Ctrl+S)">Save</button>
         <button id="saveFileAs" title="Save as a new .senario file (Ctrl+Shift+S)">Save as</button>
@@ -28,9 +29,13 @@
       <button class="nav active" data-tab="company">Company</button>
       <button class="nav" data-tab="customers">Customers</button>
       <button class="nav" data-tab="parties">Parties</button>
+      <button class="nav" data-tab="injects">Injects</button>
       <button class="nav" data-tab="settings">Settings</button>
+      <div class="nav-sep"></div>
       <button class="nav" data-tab="run">Activity</button>
       <button class="nav" data-tab="threads">Conversations</button>
+      <button class="nav" data-tab="outbox">Outbox <span id="outboxBadge" class="badge" hidden></span></button>
+      <button class="nav" data-tab="report">Report</button>
     </nav>
     <div id="scenarioDate" class="scenario-date" hidden></div>
     <div class="side-status listener-status">
@@ -105,6 +110,8 @@
 
       <div class="card row">
         <label class="inline">Generate <input id="customerCount" type="number" min="1" max="30" value="6" /> customers</label>
+        <label class="inline">in organisations of
+          <select id="perOrg" class="auto small-select"><option value="1">1 person</option><option value="2">up to 2</option><option value="3">up to 3</option></select></label>
         <button id="generateCustomers" class="primary">Add customers</button>
         <button id="replaceCustomers">Replace all</button>
         <span class="grow"></span>
@@ -143,6 +150,39 @@
       </div>
     </section>
 
+    <!-- INJECTS -->
+    <section id="tab-injects" class="tab">
+      <header class="page-head">
+        <h1>Injects</h1>
+        <p class="muted">Planned events that fire at set times after the exercise starts: an email from a customer or party
+          (written by the AI from your brief, or sent word for word), or a change to the guidance every customer follows.</p>
+      </header>
+
+      <div class="card clock-card">
+        <div>
+          <div class="muted small">Exercise clock</div>
+          <div id="exerciseClock" class="clock">T+0:00</div>
+          <div id="exerciseState" class="muted small">Paused: starts with the scenario</div>
+        </div>
+        <span class="grow"></span>
+        <button id="resetExercise">Reset clock</button>
+      </div>
+      <p class="muted small">The clock runs only while the scenario is running, in scenario time: at 60× pace, an hour passes in a minute.
+        Resetting it sets every inject back to pending.</p>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Timeline <span id="injectCount" class="pill"></span></h2>
+          <button id="addInject">Add inject</button>
+        </div>
+        <div id="injects" class="people"></div>
+      </div>
+
+      <div class="sticky-actions">
+        <button id="saveInjects" class="primary">Save injects</button>
+      </div>
+    </section>
+
     <!-- SETTINGS -->
     <section id="tab-settings" class="tab">
       <header class="page-head">
@@ -168,7 +208,11 @@
           <div><label>Username</label><input data-k="mail.username" autocomplete="off" /></div>
           <div><label>Password</label><input data-k="mail.password" type="password" autocomplete="off" /></div>
         </div>
-        <div class="row"><button data-test="smtp">Test SMTP</button></div>
+        <label class="check"><input type="checkbox" data-k="mail.dkim" /> Sign customer and party email with DKIM</label>
+        <p class="muted small">Publish the TXT records below on the scenario's DNS server so the mail server can verify them.
+          DKIM was introduced in 2007, so leave it off for earlier operating years.</p>
+        <div class="row"><button data-test="smtp">Test SMTP</button><button id="showDkim">Show DKIM DNS records</button></div>
+        <pre id="dkimRecords" class="mono routing" hidden></pre>
       </div>
 
       <div class="card">
@@ -207,6 +251,13 @@
             </select>
           </div>
         </div>
+        <div class="row">
+          <label class="check"><input type="checkbox" data-k="scenario.allowDocuments" /> Customers can attach documents (PDF, Word, Excel)</label>
+          <label class="check"><input type="checkbox" data-k="scenario.allowMeetings" /> Customers can send meeting invitations</label>
+        </div>
+        <div class="grid3">
+          <div><label>Out-of-office chance (0–1)</label><input data-k="scenario.oooChance" type="number" min="0" max="1" step="0.01" /></div>
+        </div>
         <label>Extra guidance for customers (optional)</label>
         <textarea data-k="scenario.guidance" rows="3" placeholder="e.g. A product recall is under way this week; several customers are unhappy about late deliveries."></textarea>
         <div class="grid3">
@@ -236,6 +287,18 @@
         <label class="check"><input type="checkbox" data-k="scenario.partyFollowUps" /> External parties also chase questions they asked that went unanswered</label>
       </div>
 
+      <div class="card">
+        <h2>Background mail</h2>
+        <label class="check"><input type="checkbox" data-k="scenario.backgroundEnabled" /> Send newsletters and automated notifications that need no reply</label>
+        <div class="grid3">
+          <div><label>One every (min, from)</label><input data-k="scenario.backgroundMinMin" type="number" min="1" /></div>
+          <div><label>…to (min)</label><input data-k="scenario.backgroundMaxMin" type="number" min="1" /></div>
+        </div>
+        <p class="muted small">Trade newsletters, supplier offers, order and delivery notifications, statements and system alerts,
+          from fictional senders on the customer TLD. They use bulk-mail headers and are never chased.</p>
+        <div class="row"><button id="backgroundNow">Send one now</button></div>
+      </div>
+
       <div class="sticky-actions">
         <button id="saveSettings" class="primary">Save settings</button>
       </div>
@@ -258,12 +321,80 @@
 
     <!-- THREADS -->
     <section id="tab-threads" class="tab split">
-      <div class="thread-list" id="threadList"></div>
+      <div class="thread-pane">
+        <label class="check thread-filter"><input type="checkbox" id="showBackground" /> Show background mail</label>
+        <div class="thread-list" id="threadList"></div>
+      </div>
       <div class="thread-view" id="threadView"><p class="muted center">Select a conversation</p></div>
+    </section>
+
+    <!-- OUTBOX -->
+    <section id="tab-outbox" class="tab">
+      <header class="page-head">
+        <h1>Outbox</h1>
+        <p class="muted">Review AI-written emails before they go out, or write one yourself as any customer or party.</p>
+      </header>
+
+      <div class="card">
+        <label class="check"><input type="checkbox" id="reviewToggle" /> Hold AI-written emails here for review before sending</label>
+        <p class="muted small">New emails, replies and chases wait below until you send or discard them. Follow-ups are only scheduled once an email is actually sent.
+          Injects, out-of-office replies and background mail are never held.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Waiting for review <span id="outboxCount" class="pill"></span></h2></div>
+        <div id="drafts" class="drafts"></div>
+      </div>
+
+      <details class="card compose" id="composeCard">
+        <summary><h2>Write an email</h2></summary>
+        <div class="grid2">
+          <div><label>From (customer or party)</label><select id="composeFrom"></select></div>
+          <div><label>Conversation</label><select id="composeThread"><option value="">New conversation</option></select></div>
+        </div>
+        <label>To</label><div id="composeTo" class="checks"></div>
+        <label>Cc</label><div id="composeCc" class="checks"></div>
+        <label>Subject</label><input id="composeSubject" placeholder="Leave empty when replying in a conversation" />
+        <label>Message</label><textarea id="composeBody" rows="8" placeholder="Hi Sarah,&#10;&#10;…"></textarea>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="composeExpect" checked /> Waiting for an answer (chase if unanswered)</label>
+          <span class="grow"></span>
+          <button id="composeSend" class="primary">Send</button>
+        </div>
+      </details>
+    </section>
+
+    <!-- REPORT -->
+    <section id="tab-report" class="tab">
+      <header class="page-head row-head">
+        <div>
+          <h1>Report</h1>
+          <p class="muted">How each employee handled the mail: response times on the exercise clock, what is still waiting, and how conversations ended.</p>
+        </div>
+        <div class="row">
+          <button id="refreshReport">Refresh</button>
+          <button id="exportHtml">Export HTML</button>
+          <button id="exportPdf" class="primary">Export PDF</button>
+        </div>
+      </header>
+      <div id="reportView"></div>
     </section>
   </main>
 
+  <div id="modal" class="modal" hidden>
+    <div class="modal-box">
+      <div class="card-head"><h2>New scenario</h2><button class="link" id="closeModal" title="Close">✕</button></div>
+      <p class="muted small">Start from a ready-made company or a blank scenario. Mail server, OpenAI and timing settings are kept.</p>
+      <div id="templateList" class="templates"></div>
+    </div>
+  </div>
+
   <div id="toast" class="toast"></div>
   <script src="renderer.js"></script>
+  <script src="outbox.js"></script>
+  <script src="injects.js"></script>
+  <script src="report.js"></script>
+  <script src="templates.js"></script>
+  <script src="boot.js"></script>
 </body>
 </html>

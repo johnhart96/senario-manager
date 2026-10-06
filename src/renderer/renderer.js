@@ -13,6 +13,9 @@ let running = false;
 let currentThread = null;
 let localIps = [];
 let clockOffsetMs = 0;
+let lastStatus = {};
+const statusHooks = [];
+const tabHooks = {};
 
 // Real time → the company's operating year (whole-week shift, same wall-clock time).
 function toScenario(d) {
@@ -97,8 +100,13 @@ $$('.nav').forEach((b) =>
     $$('.nav').forEach((x) => x.classList.toggle('active', x === b));
     $$('.tab').forEach((t) => t.classList.toggle('active', t.id === 'tab-' + b.dataset.tab));
     if (b.dataset.tab === 'threads') loadThreads();
+    if (tabHooks[b.dataset.tab]) tabHooks[b.dataset.tab]();
   })
 );
+
+function showTab(name) {
+  $(`.nav[data-tab="${name}"]`).click();
+}
 
 // ---------- settings ----------
 
@@ -149,6 +157,25 @@ $('#saveSettings').addEventListener('click', (e) =>
   busy(e.target, async () => {
     await saveSettings();
     toast('Settings saved');
+  })
+);
+
+$('#showDkim').addEventListener('click', (e) =>
+  busy(e.target, async () => {
+    const recs = await window.api.dkimRecords();
+    const box = $('#dkimRecords');
+    box.hidden = false;
+    box.textContent = recs.length
+      ? recs.map((r) => `${r.name}  TXT  "${r.value}"`).join('\n\n')
+      : 'Add customers or parties first.';
+  })
+);
+
+$('#backgroundNow').addEventListener('click', (e) =>
+  busy(e.target, async () => {
+    await saveSettings();
+    await window.api.backgroundNow();
+    toast('Background email sent');
   })
 );
 
@@ -233,17 +260,18 @@ const CUSTOMER_FIELDS = [
   ['personality', 'Personality', 'area'],
   ['writingStyle', 'Writing style', 'area'],
   ['signature', 'Signature', 'area'],
+  ['memory', 'Remembers about the company (one note per line, added to automatically)', 'lines'],
 ];
 
 // Expandable card for an external person (customer or party). fields: [key, label, type?, placeholder?]
 function personCard(fields, c, newLabel) {
   const body = fields.map(([k, label, type, ph]) => {
-    const v = esc(c[k] || '');
+    const v = esc(type === 'lines' ? (c[k] || []).join('\n') : c[k] || '');
     const p = ph ? ` placeholder="${esc(ph)}"` : '';
-    const input = type === 'area'
-      ? `<textarea data-f="${k}" rows="${k === 'signature' ? 4 : 2}"${p}>${v}</textarea>`
+    const input = type === 'area' || type === 'lines'
+      ? `<textarea data-f="${k}"${type === 'lines' ? ' data-type="lines"' : ''} rows="${k === 'signature' || k === 'memory' ? 4 : 2}"${p}>${v}</textarea>`
       : `<input data-f="${k}" value="${v}"${p} />`;
-    return `<div class="${k === 'signature' || k === 'services' ? 'full' : ''}"><label>${label}</label>${input}</div>`;
+    return `<div class="${['signature', 'services', 'memory'].includes(k) ? 'full' : ''}"><label>${label}</label>${input}</div>`;
   }).join('');
   return `<details class="person">
     <summary>
@@ -262,7 +290,9 @@ function readCards(container) {
   return $$('.person', container)
     .map((el) => {
       const c = {};
-      $$('[data-f]', el).forEach((i) => (c[i.dataset.f] = i.value.trim()));
+      $$('[data-f]', el).forEach((i) => {
+        c[i.dataset.f] = i.dataset.type === 'lines' ? i.value.split('\n').map((l) => l.trim()).filter(Boolean) : i.value.trim();
+      });
       c.email = (c.email || '').toLowerCase();
       return c;
     })
@@ -276,6 +306,7 @@ function fillCustomers() {
   $('#sendFrom').innerHTML = '<option value="">Random customer</option>' +
     customers.map((c) => `<option value="${esc(c.email)}">${esc(c.name)} (${esc(c.organisation)})</option>`).join('');
   if (settings) renderRouting();
+  if (typeof fillComposeOptions === 'function') fillComposeOptions();
 }
 
 const readCustomers = () => readCards($('#customers'));
@@ -296,7 +327,7 @@ $('#addCustomer').addEventListener('click', () => {
 async function generate(button, replace) {
   if (replace && customers.length && !confirm('Replace all existing customers with newly generated ones?')) return;
   await busy(button, async () => {
-    customers = await window.api.generateCustomers({ count: Number($('#customerCount').value) || 5, replace });
+    customers = await window.api.generateCustomers({ count: Number($('#customerCount').value) || 5, replace, perOrg: Number($('#perOrg').value) || 1 });
     fillCustomers();
     toast(`${customers.length} customers`);
   });
@@ -323,6 +354,7 @@ const PARTY_FIELDS = [
   ['personality', 'Personality', 'area', 'Methodical and friendly, a stickler for deadlines'],
   ['writingStyle', 'Writing style', 'area', 'Short, polite emails; uses bullet points for figures'],
   ['signature', 'Signature', 'area', 'Dave Smith ACA\nSmith & Co Chartered Accountants\nTel 0161 555 0199'],
+  ['memory', 'Remembers about the company (one note per line, added to automatically)', 'lines'],
 ];
 const partyHtml = (p) => personCard(PARTY_FIELDS, p, 'New party');
 
@@ -387,6 +419,7 @@ async function commitForms() {
   company = await window.api.setCompany(readCompany());
   customers = await window.api.setCustomers(readCustomers());
   parties = await window.api.setParties(readParties());
+  if (typeof readInjects === 'function') injects = await window.api.setInjects(readInjects());
 }
 
 async function reloadAll() {
@@ -394,6 +427,9 @@ async function reloadAll() {
   fillSettings();
   fillCompany();
   fillCustomers();
+  fillParties();
+  if (typeof loadInjects === 'function') await loadInjects();
+  if (typeof loadOutbox === 'function') await loadOutbox();
   $('#log').innerHTML = '';
   (await window.api.getLog()).forEach(appendLog);
   currentThread = null;
@@ -436,6 +472,9 @@ document.addEventListener('keydown', (e) => {
   } else if (k === 'o') {
     e.preventDefault();
     openFile($('#openFile'));
+  } else if (k === 'n') {
+    e.preventDefault();
+    $('#newScenario').click();
   }
 });
 
@@ -481,6 +520,12 @@ $('#paceSlider').addEventListener('change', async (e) => {
 
 // ---------- run / status ----------
 
+// Exercise clock as "T+h:mm" (scenario time).
+function fmtExercise(ms) {
+  const min = Math.floor((ms || 0) / 60000);
+  return `T+${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
+}
+
 function setStatus(s) {
   running = s.running;
   clockOffsetMs = s.clockOffsetMs || 0;
@@ -493,9 +538,15 @@ function setStatus(s) {
   $('#listenSub').textContent = s.listening ? 'SMTP ' + s.listening : s.listenerError || 'Set the mail server in Settings';
   $('#retryListener').hidden = !!s.listening;
   const parts = [];
+  if (s.exerciseMs) parts.push(fmtExercise(s.exerciseMs));
   if (running && s.nextEventAt) parts.push('next email ' + new Date(s.nextEventAt).toLocaleTimeString());
-  if (s.pendingReplies) parts.push(`${s.pendingReplies} repl${s.pendingReplies === 1 ? 'y' : 'ies'} queued`);
+  if (s.pendingReplies) parts.push(`${s.pendingReplies} queued`);
   $('#statusSub').textContent = parts.join(' · ');
+  const badge = $('#outboxBadge');
+  badge.hidden = !s.outbox;
+  badge.textContent = s.outbox || '';
+  lastStatus = s;
+  for (const fn of statusHooks) fn(s);
   const btn = $('#toggleRun');
   btn.textContent = running ? 'Stop scenario' : 'Start scenario';
   btn.classList.toggle('running', running);
@@ -542,16 +593,22 @@ function appendLog(entry) {
 const fmtDate = (d) => toScenario(d).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 
 async function loadThreads() {
-  const threads = await window.api.listThreads();
+  const showBg = $('#showBackground').checked;
+  const threads = (await window.api.listThreads()).filter((t) => showBg || !t.background);
+  const tags = (t) => [
+    t.party ? '<span class="tag party">Party</span>' : '',
+    t.background ? '<span class="tag bg">Background</span>' : '',
+    t.status === 'resolved' ? '<span class="tag done">Resolved</span>' : '',
+  ].join('');
   $('#threadList').innerHTML =
     threads
       .map(
         (t) => `<div class="thread-item ${t.id === currentThread ? 'active' : ''}" data-id="${esc(t.id)}">
-          <div class="subj">${t.party ? '<span class="tag party">Party</span> ' : ''}${esc(t.subject || '(no subject)')}</div>
+          <div class="subj">${tags(t)}${esc(t.subject || '(no subject)')}</div>
           <div class="meta"><span>${esc(t.last ? t.last.fromName || t.last.from : '')}${t.attachments ? ` · 📎 ${t.attachments}` : ''}</span><span>${t.count} · ${fmtDate(t.updatedAt)}</span></div>
         </div>`
       )
-      .join('') || '<p class="muted" style="padding:16px">No conversations yet.</p>';
+      .join('') || '<p class="muted empty-list">No conversations yet.</p>';
   if (currentThread) showThread(currentThread);
 }
 
@@ -564,13 +621,15 @@ const ATT_STATUS = {
   error: 'could not be read',
 };
 
-function attachmentsHtml(list) {
+function attachmentsHtml(list, threadId, messageId) {
   if (!list || !list.length) return '';
   return `<div class="atts">${list
-    .map((a) => {
+    .map((a, i) => {
       const ext = (a.filename.split('.').pop() || '').slice(0, 4).toUpperCase();
+      const save = a.sent && a.spec
+        ? ` · <button class="link save-att" data-thread="${esc(threadId)}" data-msg="${esc(messageId)}" data-idx="${i}">Save</button>` : '';
       const head = `<span class="att-ext">${esc(ext)}</span><span class="att-name">${esc(a.filename)}</span>
-        <span class="att-meta">${fmtSize(a.size)} · <span class="att-status ${esc(a.status)}" title="${esc(a.error || '')}">${esc(ATT_STATUS[a.status] || a.status)}</span></span>`;
+        <span class="att-meta">${fmtSize(a.size)} · <span class="att-status ${esc(a.status)}" title="${esc(a.error || '')}">${esc(a.sent ? 'sent' : ATT_STATUS[a.status] || a.status)}</span>${save}</span>`;
       return a.status === 'ok' && a.text
         ? `<details class="att"><summary>${head}</summary><pre class="att-text">${esc(a.text)}${a.truncated ? '\n\n[… truncated]' : ''}</pre></details>`
         : `<div class="att">${head}</div>`;
@@ -590,45 +649,41 @@ async function showThread(id) {
         (m) => `<div class="msg ${m.direction}">
           <div class="msg-head">
             <span class="who">${esc(m.fromName || m.from)}</span>
-            <span class="tag">${m.direction === 'in' ? 'from company' : 'customer (AI)'}</span>
-            <span class="addr" style="float:right">${fmtDate(m.date)}</span>
+            <span class="tag">${esc(kindLabel(m))}</span>
+            <span class="addr msg-date">${fmtDate(m.date)}${typeof m.exerciseMs === 'number' ? ` · ${fmtExercise(m.exerciseMs)}` : ''}</span>
             <div class="addr">${esc(m.from)} → ${esc(m.to.join(', '))}${m.cc && m.cc.length ? ' · cc ' + esc(m.cc.join(', ')) : ''}</div>
           </div>
+          ${m.meeting ? `<div class="meeting">📅 Meeting invitation: ${esc(m.meeting)}</div>` : ''}
+          ${m.meetingResponse ? `<div class="meeting">📅 ${esc(m.meetingResponse)}</div>` : ''}
           <div class="msg-body">${esc(m.body)}</div>
-          ${attachmentsHtml(m.attachments)}
+          ${attachmentsHtml(m.attachments, t.id, m.messageId)}
         </div>`
       )
       .join('');
 }
+
+function kindLabel(m) {
+  if (m.direction === 'in') return 'from company';
+  return {
+    reply: 'reply (AI)', followup: `chase ${m.followUp || ''} (AI)`.replace('  ', ' '), inject: 'inject', manual: 'written by you',
+    ooo: 'out of office', background: 'background', new: 'new (AI)',
+  }[m.kind] || 'customer (AI)';
+}
+
+$('#threadView').addEventListener('click', (e) => {
+  const b = e.target.closest('.save-att');
+  if (!b) return;
+  e.preventDefault();
+  busy(b, async () => {
+    const file = await window.api.saveAttachment(b.dataset.thread, b.dataset.msg, Number(b.dataset.idx));
+    if (file) toast(`Saved ${file}`);
+  });
+});
+
+$('#showBackground').addEventListener('change', loadThreads);
 
 $('#threadList').addEventListener('click', (e) => {
   const item = e.target.closest('.thread-item');
   if (item) showThread(item.dataset.id);
 });
 
-// ---------- boot ----------
-
-window.api.on('log', appendLog);
-window.api.on('status', setStatus);
-window.api.on('state-loaded', reloadAll);
-window.api.on('file-status', showFile);
-window.api.on('threads-changed', () => {
-  if ($('#tab-threads').classList.contains('active')) loadThreads();
-});
-
-(async () => {
-  [settings, company, customers, parties, localIps] = await Promise.all([
-    window.api.getSettings(),
-    window.api.getCompany(),
-    window.api.getCustomers(),
-    window.api.getParties(),
-    window.api.localIps(),
-  ]);
-  fillSettings();
-  fillCompany();
-  fillCustomers();
-  fillParties();
-  setStatus(await window.api.status());
-  showFile(await window.api.currentFile());
-  (await window.api.getLog()).forEach(appendLog);
-})();

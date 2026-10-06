@@ -27,9 +27,11 @@ const median = (xs) => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
 
-// Scenario-time position of a message: its exercise clock reading, or (for messages
-// recorded before the clock existed) its real timestamp.
-const at = (m) => (typeof m.exerciseMs === 'number' ? m.exerciseMs : Date.parse(m.date));
+// Time between two messages: on the exercise clock (scenario time) when both carry a
+// reading, otherwise real time (messages recorded before the clock existed).
+const hasClock = (m) => typeof m.exerciseMs === 'number';
+const between = (a, b) => (hasClock(a) && hasClock(b) ? b.exerciseMs - a.exerciseMs : Date.parse(b.date) - Date.parse(a.date));
+const at = (m) => (hasClock(m) ? m.exerciseMs : Date.parse(m.date));
 
 /**
  * data: store.data; company: store.company; contacts: Map email -> contact.
@@ -69,13 +71,13 @@ function compute({ data, company, contacts, exerciseMs = 0 }) {
         const reply = msgs.slice(i + 1).find((r) => r.direction === 'in' && lc(r.from) === e);
         if (reply) {
           p.answered++;
-          const ms = Math.max(0, at(reply) - at(m));
+          const ms = Math.max(0, between(m, reply));
           p.responseTimes.push(ms);
           if (firstResponse === null) firstResponse = ms;
         } else if (!msgs.slice(i + 1).some((r) => r.direction === 'in')) {
           // Nobody from the company has replied since: still waiting on them.
           p.waiting++;
-          const age = Math.max(0, nowAt - at(m));
+          const age = Math.max(0, hasClock(m) ? nowAt - m.exerciseMs : Date.now() - Date.parse(m.date));
           if (p.oldestWaitingMs === null || age > p.oldestWaitingMs) p.oldestWaitingMs = age;
         }
       }

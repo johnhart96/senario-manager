@@ -1,8 +1,8 @@
 # `.senario` files
 
 A `.senario` file is a complete, portable snapshot of a scenario: settings, company, customers,
-parties, every conversation (including attachment text), queued replies and chases, and the
-activity log. It's an ordinary **SQLite 3 database**, so besides opening it in Senario Manager
+parties (with their memory), every conversation (including attachment text), queued replies and
+chases, drafts awaiting review, injects, the exercise clock and the activity log. It's an ordinary **SQLite 3 database**, so besides opening it in Senario Manager
 you can inspect or query it with any SQLite tool, such as
 [DB Browser for SQLite](https://sqlitebrowser.org) or the `sqlite3` command line.
 
@@ -18,11 +18,12 @@ For how to save, open and auto-save from the app, see the
   `meta.includes_credentials` is `0`. Opening such a file keeps the credentials already in the app.
 - **Scheduled jobs** store the time they had *remaining* (`remaining_ms`), not an absolute time,
   so a file opened days later resumes as if no time had passed.
-- **Compatibility:** files missing tables or columns added in later versions (`parties`,
-  `attachments`, `activity_log`, `company.operating_year`) open with those parts empty. Files
-  from a *newer* format version are refused with a clear message.
+- **The exercise clock** is saved paused, at the time it had reached.
+- **Compatibility:** version 1 files open normally; tables and columns added later open empty.
+  Files from a *newer* format version are refused with a clear message (version 0.1.0 of the app
+  refuses version 2 files).
 
-## Schema (format version 1)
+## Schema (format version 2)
 
 ### `meta`
 
@@ -31,7 +32,7 @@ Key/value pairs describing the file.
 | key | value |
 |---|---|
 | `format` | Always `senario`. Used to recognise the file. |
-| `format_version` | `1` |
+| `format_version` | `2` |
 | `app_version` | Version of Senario Manager that saved it. |
 | `saved_at` | ISO 8601 timestamp. |
 | `includes_credentials` | `1` or `0` |
@@ -64,8 +65,8 @@ Ordered by `position` (the order shown in the app).
 | table | columns |
 |---|---|
 | `employees` | `name`, `email`, `role`, `responsibilities` |
-| `customers` | `name`, `email`, `organisation`, `role`, `relationship`, `personality`, `writing_style`, `signature` |
-| `parties` | `name`, `email`, `organisation`, `role`, `services`, `personality`, `writing_style`, `signature` |
+| `customers` | `name`, `email`, `organisation`, `role`, `relationship`, `personality`, `writing_style`, `signature`, `memory` (JSON array of notes) |
+| `parties` | `name`, `email`, `organisation`, `role`, `services`, `personality`, `writing_style`, `signature`, `memory` |
 
 ### `threads`
 
@@ -75,6 +76,9 @@ Ordered by `position` (the order shown in the app).
 | `subject` | Base subject without `Re:`/`Fwd:`. |
 | `customer` | Email of the customer or party the thread is with. |
 | `updated_at` | ISO 8601, real-world time of the latest message. |
+| `status` | `open` or `resolved`. |
+| `background` | `1` for background mail (newsletters and notifications). |
+| `thread_index` | Outlook `Thread-Index` base for the conversation, if any. |
 
 ### `messages`
 
@@ -87,6 +91,7 @@ Ordered by `position` (the order shown in the app).
 | `to_addrs`, `cc_addrs` | JSON arrays of addresses. |
 | `subject`, `body` | Body is the new text only, with quoted history stripped. |
 | `date` | ISO 8601, **real-world** time sent or received (scenario-year dates are derived for display). |
+| `meta` | JSON with any extra fields: `kind` (`new`, `reply`, `followup`, `inject`, `manual`, `ooo`, `background`), `exerciseMs` (exercise clock reading), `followUp` (chase number), `meeting` (invitation sent), `meetingResponse` (accept/decline received). |
 
 ### `attachments`
 
@@ -101,6 +106,8 @@ Text extracted from attachments on received messages. The original files aren't 
 | `text` | Extracted text (up to 20,000 characters). |
 | `truncated` | `1` if the text was cut short. |
 | `error` | Error message when `status = 'error'`. |
+| `spec` | For documents the app generated and sent: the JSON description they were rendered from (used by **Save**). |
+| `sent` | `1` for documents the app sent, `0` for attachments received. |
 
 ### `pending_jobs`
 
@@ -116,6 +123,23 @@ Customer/party replies and follow-up chases waiting to be sent.
 | `attempt` | Follow-up number (1, 2, …). |
 | `remaining_ms` | Real milliseconds left when saved. |
 | `scenario_ms` | The delay in scenario time (used for wording like "no reply for ~2 days"). |
+
+### `outbox`
+
+Drafts waiting for review: `position`, `draft` (JSON: kind, sender, to, cc, subject, body,
+thread and quoting references, optional document and meeting).
+
+### `injects`
+
+The exercise timeline: `position`, `inject` (JSON: `at` minutes, title, type, from, to, mode,
+subject, body, status, firedAt).
+
+### `state`
+
+| key | value |
+|---|---|
+| `exercise` | `{ elapsedMs, startedAt }`: the exercise clock, paused |
+| `dkimKeys` | DKIM keys per sender domain (`selector`, `privateKey`, `publicKey`). Lab-only keys, included so DNS records stay valid when a file is moved. |
 
 ### `activity_log`
 

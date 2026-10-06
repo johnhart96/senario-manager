@@ -33,7 +33,19 @@ the company's mail server, and it plays the outside world:
   employees email them, but never start conversations themselves.
 - **Real-looking HTML email**, with a consistent font and quoting style per sender (plain text
   is optional).
-- **Unanswered emails get chased:** a polite nudge first, then firmer, then escalation to a manager.
+- **Unanswered emails get chased:** a polite nudge first, then firmer, then escalation, sometimes
+  by the customer's own manager.
+- **Customers send real documents** (purchase orders, remittances, specs as PDF, Word or Excel in
+  the format of the year) and **meeting invitations**, remember earlier dealings, copy in
+  colleagues, and are sometimes out of the office.
+- **Background mail:** newsletters and automated notifications, so the inbox isn't all action.
+- **Scripted injects:** plan key events on an exercise clock (*"T+0:20: the hired desk fails"*)
+  and let random traffic fill the gaps.
+- **Review before sending:** hold AI-written emails in an Outbox, or write one yourself as any
+  customer.
+- **Trainee report:** response times, unanswered mail and outcomes per employee, exported as
+  HTML or PDF.
+- **Six ready-made templates**, from a law firm to a GP surgery.
 - **Any era:** set the company's operating year (e.g. 2005) and dates, technology, prices and
   events all fit that year.
 
@@ -71,6 +83,8 @@ flowchart LR
 |---|---|
 | ![Company tab](docs/images/company.png) **Company:** your organisation, employees and operating year | ![Customers tab](docs/images/customers.png) **Customers:** AI-generated, fully editable |
 | ![Parties tab](docs/images/parties.png) **Parties:** suppliers and contractors you define | ![Activity tab](docs/images/activity.png) **Activity:** live log of everything sent and received |
+| ![Injects tab](docs/images/injects.png) **Injects:** the exercise timeline | ![Outbox tab](docs/images/outbox.png) **Outbox:** review AI emails before they go |
+| ![Report tab](docs/images/report.png) **Report:** how each trainee handled their mail | ![Template picker](docs/images/templates.png) **Templates:** start from a ready-made company |
 
 ## Quick start
 
@@ -83,8 +97,8 @@ flowchart LR
    npm install
    npm start
    ```
-2. **Company tab:** enter the company name, email domain, a description of what it does and
-   every employee with their role. Save.
+2. **Company tab:** click **New** to start from a template, or enter the company name, email
+   domain, a description of what it does and every employee with their role. Save.
 3. **Settings:** add your OpenAI API key, the mail server's address, and check the listener port
    (25 by default).
 4. **Customers tab:** generate a set of customers. Optionally add suppliers on the **Parties** tab.

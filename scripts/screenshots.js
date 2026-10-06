@@ -26,7 +26,8 @@ const employees = [
   { name: 'Mike Dunn', email: 'mike.dunn@northwind.local', role: 'Operations Director', responsibilities: 'Escalations, suppliers, warehouse' },
 ];
 const customers = [
-  { name: 'Helen Marsh', email: 'helen.marsh@riversidetheatre.local', organisation: 'Riverside Theatre', role: 'Production Manager', relationship: 'Hires lighting for every main-house show since 1999', personality: 'Organised, warm, but firm about budgets', writingStyle: 'Friendly, detailed, numbered points', signature: 'Helen Marsh\nProduction Manager\nRiverside Theatre\nTel 0161 496 0321' },
+  { name: 'Helen Marsh', email: 'helen.marsh@riversidetheatre.local', organisation: 'Riverside Theatre', role: 'Production Manager', relationship: 'Hires lighting for every main-house show since 1999', personality: 'Organised, warm, but firm about budgets', writingStyle: 'Friendly, detailed, numbered points', signature: 'Helen Marsh\nProduction Manager\nRiverside Theatre\nTel 0161 496 0321',
+    memory: ['12 Sep 2005: Delivery for Blithe Spirit arrived two hours late', '3 Oct 2005: Asked for the Pearl desk to be held for October'] },
   { name: 'Gary Pike', email: 'gary@pikeevents.local', organisation: 'Pike Events', role: 'Director', relationship: 'Corporate events client, books a few times a year', personality: 'Impatient, always last-minute', writingStyle: 'Short, few capitals', signature: 'Gary\nPike Events' },
   { name: 'Aisha Rahman', email: 'a.rahman@stmarysschool.local', organisation: "St Mary's School", role: 'Bursar', relationship: 'Annual school play hire', personality: 'Polite and precise', writingStyle: 'Formal', signature: "Mrs A. Rahman\nBursar, St Mary's School" },
   { name: 'Jon Ellery', email: 'jon@elleryweddings.local', organisation: 'Ellery Weddings', role: 'Planner', relationship: 'New customer this year', personality: 'Chatty and enthusiastic', writingStyle: 'Long emails, lots of exclamation marks', signature: 'Jon x\nEllery Weddings' },
@@ -53,6 +54,7 @@ const threads = {
       body: 'Hi Helen,\n\nLovely to hear from you. Quote attached, all kit is available for your dates.\n\nBest regards,\nSarah',
       attachments: [{ filename: 'Quote Q-4471.pdf', contentType: 'application/pdf', size: 48213, kind: 'pdf', status: 'ok', text: quoteText, truncated: false }] },
     { messageId: '<a2@riversidetheatre.local>', direction: 'out', from: customers[0].email, fromName: 'Helen Marsh', to: [employees[0].email], cc: [], subject: 'Re: Lighting for "An Inspector Calls"', date: ago(12),
+      exerciseMs: 90 * 60000, meeting: 'Get-in planning, Thursday, 13 October 2005 at 10:00 (45 min), Riverside Theatre stage door', kind: 'reply',
       body: 'Hi Sarah,\n\nThanks for Q-4471, that all looks right for the rig. Two questions before I can get it signed off:\n\n1. The £120 delivery charge, last season it was included for a two-week hire. Has that changed?\n2. Could the Pearl come in on the Friday before so our LX can pre-plot?\n\nIf we can sort the delivery, I can fax over the order by Thursday.\n\nMany thanks,\nHelen' },
   ] },
   t2: { id: 't2', subject: 'Q3 VAT return', customer: parties[0].email, updatedAt: ago(35), messages: [
@@ -71,7 +73,7 @@ const seed = {
     openai: { model: 'gpt-4.1-mini' },
     mail: { host: '10.0.0.25', smtpPort: 25, smtpSecurity: 'starttls' },
     listener: { bindAddress: '127.0.0.1', port: 2590, offerStartTls: true },
-    scenario: { customerTld: 'local', minIntervalMin: 20, maxIntervalMin: 90, replyDelayMinSec: 900, replyDelayMaxSec: 7200, pace: 30, followUpEnabled: true },
+    scenario: { customerTld: 'local', minIntervalMin: 20, maxIntervalMin: 90, replyDelayMinSec: 900, replyDelayMaxSec: 7200, pace: 30, followUpEnabled: true, reviewBeforeSend: true },
   },
   company: { name: 'Northwind Stage Lighting Ltd', domain: 'northwind.local', operatingYear: 2005, datedEmails: true,
     description: 'Northwind hires and installs stage lighting for theatres, schools, weddings and corporate events across the North West. Customers request quotes, book kit and crew, report faults and query invoices. Busy autumn season with several theatre openings.',
@@ -80,6 +82,19 @@ const seed = {
   parties,
   threads,
   msgIndex: Object.fromEntries(Object.values(threads).flatMap((t) => t.messages.map((m) => [m.messageId, t.id]))),
+  outbox: [
+    { id: 'd1', kind: 'reply', sender: customers[2].email, to: [employees[2].email], cc: [], subject: 'Re: Invoice INV-2214 - order number', createdAt: ago(1),
+      body: "Dear Priya,\n\nThank you for the invoice. Unfortunately our finance system cannot process it without our purchase order number, SMS-0417, quoted on it.\n\nCould you please reissue it with the order number?\n\nYours sincerely,\nMrs A. Rahman\nBursar, St Mary's School",
+      threadId: 't2', followUp: true,
+      document: { format: 'pdf', title: 'Purchase Order', reference: 'SMS-0417', table: { columns: ['Item', 'Qty'], rows: [['Lighting hire, school play', '1']] } } },
+  ],
+  injects: [
+    { id: 'i1', at: 20, title: 'Fault on a hired desk', type: 'email', from: customers[0].email, to: [employees[1].email], mode: 'brief', body: 'The Pearl desk keeps freezing in the tech rehearsal; opening night is tomorrow.', expectReply: true, status: 'sent', firedAtMs: 20 * 60000 },
+    { id: 'i2', at: 60, title: 'Invoice dispute', type: 'email', from: customers[1].email, to: [employees[2].email], mode: 'brief', body: 'Dispute invoice INV-2207: charged for 4 crew but only 3 turned up.', expectReply: true, status: 'sent', firedAtMs: 61 * 60000 },
+    { id: 'i3', at: 120, title: 'Busy week', type: 'guidance', guidanceMode: 'append', body: 'It is the busiest week of the season.', status: 'pending' },
+    { id: 'i4', at: 180, title: 'Escalation from the GM', type: 'email', from: customers[0].email, to: [employees[3].email], mode: 'brief', body: 'Formal complaint about the desk failure.', expectReply: true, status: 'pending' },
+  ],
+  exercise: { elapsedMs: 96 * 60000, runningSince: null, startedAt: ago(100) },
   pending: [
     { id: 'j1', type: 'reply', customer: customers[0].email, threadId: 't1', replyToId: '<s1@northwind.local>', due: now + 9 * 60000, scenarioMs: 3600000 },
     { id: 'j2', type: 'followup', customer: customers[1].email, threadId: 't3', afterId: '<g2@pikeevents.local>', attempt: 2, due: now + 40 * 60000, scenarioMs: 7200000 },
@@ -111,12 +126,17 @@ const SHOTS = [
   ['conversation', `document.querySelector('[data-tab=threads]').click()`, `document.querySelector('.thread-item[data-id=t1]').click()`, `setTimeout(() => document.querySelector('.att').open = true, 200)`],
   ['activity', `document.querySelector('[data-tab=run]').click()`],
   ['settings', `document.querySelector('[data-tab=settings]').click()`],
+  ['injects', `document.querySelector('[data-tab=injects]').click()`, `document.querySelectorAll('#injects .inject')[2].open = true`],
+  ['outbox', `document.querySelector('[data-tab=outbox]').click()`],
+  ['report', `document.querySelector('[data-tab=report]').click()`],
+  ['templates', `document.querySelector('[data-tab=company]').click(); document.querySelector('#newScenario').click()`],
 ];
 
 app.whenReady().then(async () => {
   let win;
   while (!(win = BrowserWindow.getAllWindows()[0])) await wait(100);
   win.setSize(1280, 860);
+  win.webContents.on('console-message', (e, level, message) => { if (level >= 2 || /error/i.test(message)) console.log('RENDERER:', message); });
   if (win.webContents.isLoading()) await new Promise((r) => win.webContents.once('did-finish-load', r));
   await wait(1500);
   // Never publish this machine's real addresses: show a documentation-range IP instead.

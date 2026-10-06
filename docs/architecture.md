@@ -19,13 +19,18 @@ src/
 └── core/                   No Electron UI code: everything here is testable in plain Node
     ├── engine.js           The scenario engine: scheduling, replies, follow-ups, inbound mail
     ├── ai.js               OpenAI prompts (customer email, reply, follow-up, image transcription)
-    ├── compose.js          Builds outgoing text + HTML bodies, fonts and quoting per sender
+    ├── compose.js          Outgoing text + HTML bodies, per-sender mail program, headers, layouts
+    ├── documents.js        Generates PDF / Word / Excel attachments from an AI-written spec
+    ├── calendar.js         iCalendar meeting invitations and responses
+    ├── report.js           Trainee performance report (metrics + HTML)
+    ├── templates.js        Lists and loads src/templates/*.json
     ├── mail.js             Outbound SMTP and the inbound SMTP listener, locked to one server
     ├── attachments.js      Attachment type detection; runs the parser worker; prompt formatting
     ├── extract-worker.js   Worker thread that turns one file into text
     ├── clock.js            Maps real time onto the company's operating year
     ├── store.js            Working state in the user-data folder (JSON, secrets encrypted)
     └── senario-file.js     .senario save/load (SQLite via node:sqlite)
+src/templates/              Ready-made scenarios (JSON)
 scripts/                    start, check, icon, screenshots, licenses
 test/                       Test suites (npm test)
 build/                      Icon source and macOS entitlements for electron-builder
@@ -74,13 +79,23 @@ flowchart TB
 - `contactMap()` merges customers and parties, tagging each with `kind: 'customer' | 'party'`.
   `contactDomains()` is the set of domains the listener accepts.
 
+### Drafts: one path for every outgoing email
+
+Every outgoing email (new, reply, chase, inject, manual, out-of-office, background) is a **draft**:
+plain data such as `{ kind, sender, to, cc, subject, body, threadId, quotedId, followUp,
+document, meeting, headers, layout }`. `submit(draft)` either holds it in `data.outbox` (review
+mode, unless `skipReview`) or calls `sendDraft()`. That renders any document, builds any calendar
+invitation, calls `deliver()`, records memory notes and thread status, and schedules the
+follow-up. Because drafts are data, they survive restarts and `.senario` saves.
+
 ### Outbound: a new customer email
 
 1. `scheduleNextEvent()` sets a timer for a random interval divided by the pace.
 2. `generateEvent()` picks a random **customer** (never a party) and calls
    `ai.writeCustomerEmail()`. The model chooses the recipient from the employee list. The engine
    validates it, falling back to a random employee if needed.
-3. `deliver()` checks every recipient is on a company domain, builds the body with
+3. `submit()` → `sendDraft()` → `deliver()`. `deliver()` checks the recipients (company
+   addresses, plus known contacts as colleagues), builds the body with
    `compose()` (plain text plus, by default, an HTML alternative, quoting the previous message
    when replying), creates the `Message-ID`, records it in `sentIds`, sends via
    `mail.sendMail()`, and adds the message to a thread. Threads store only the new plain text.
@@ -97,6 +112,14 @@ flowchart TB
 3. `runReply()` calls `ai.writeCustomerReply()` with the whole thread, including attachment text.
    It sends a reply-all (company addresses only) that quotes the previous message, then
    schedules a follow-up if the customer is waiting on something.
+
+### The exercise clock and injects
+
+`data.exercise = { elapsedMs, runningSince }` measures scenario time since the exercise started:
+`elapsedMs + (now − runningSince) × pace` while running, folded into `elapsedMs` on stop and on
+every pace change. Every message records `exerciseMs`, which the report uses for response times.
+While running, `checkInjects()` (every 2 s) fires pending injects whose `at × 60 000 ≤ elapsed`.
+Brief-mode injects go through `generateEvent()` with the brief and fixed recipients.
 
 ### Jobs, pace and persistence
 
@@ -173,8 +196,9 @@ Changes must keep these true. The tests check them.
 
 1. **One outbound host.** `mail.serverHost()` is the only source of the SMTP host. Nothing does
    MX lookups.
-2. **Company-only recipients.** `engine.deliver()` refuses any recipient outside the company's
-   domains.
+2. **Scenario-only recipients.** `engine.checkRecipients()` refuses any recipient that is not on a
+   company domain or a known customer/party address (a colleague copied in), and every message
+   must reach the company. Background senders must use the fictional TLD.
 3. **One inbound source.** The listener refuses connections from IPs other than the mail
    server (plus explicitly added IPs), and recipients outside customer/party domains.
 4. **No loops.** Never reply to the app's own Message-IDs, to customer/party senders, to bounces
@@ -193,6 +217,7 @@ Changes must keep these true. The tests check them.
 | `e2e.test.js` | Full loop against a local SMTP sink and the real listener: sending, replies, threading, refusals, auto-replies, follow-ups, pace, attachments |
 | `operating-year.test.js` | Prompts, `Date:` headers and quoted dates in a past year, sent through a fake OpenAI server |
 | `parties.test.js` | Parties never initiate, supplier framing, optional chasing, persistence |
+| `exercises.test.js` | Review queue, manual compose, mail-program headers, generated documents, meeting invitations and responses, colleagues and escalation, memory, out-of-office, background mail, injects on the exercise clock, the report, DKIM, templates, `.senario` v2 |
 | `html-email.test.js` | HTML composition: escaping, lists, era fonts, both quoting styles, multipart/alternative over SMTP, plain-text mode |
 | `attachments.test.js` | Every supported format, plus corrupt and unsupported files and inline logos |
 | `senario-file.test.js` | Save/load round trip, credentials, overwrite, invalid files |

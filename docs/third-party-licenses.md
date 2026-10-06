@@ -13,13 +13,16 @@ don't edit it by hand.
 |---|---|---|
 | [Electron](https://github.com/electron/electron) (includes Chromium and Node.js; see `LICENSES.chromium.html` in the installed app) | 44.5.1 | MIT |
 
-## Packages bundled in the app (65)
+## Packages bundled in the app (78)
 
-Summary: MIT × 43, BSD-2-Clause × 9, MIT-0 × 3, BSD-3-Clause × 2, ISC × 2, Apache-2.0 × 2, (MIT OR EUPL-1.1+) × 1, BSD × 1, (MIT OR GPL-3.0-or-later) × 1, (MIT AND Zlib) × 1.
+Summary: MIT × 53, BSD-2-Clause × 9, ISC × 3, MIT-0 × 3, BSD-3-Clause × 2, Apache-2.0 × 2, (MIT OR EUPL-1.1+) × 1, BSD × 1, (MIT OR GPL-3.0-or-later) × 1, (MIT AND Zlib) × 1, BlueOak-1.0.0 × 1, 0BSD × 1.
 
 | Package | Version | License |
 |---|---|---|
+| [@pdf-lib/standard-fonts](https://github.com/Hopding/standard-fonts) | 1.0.0 | MIT |
+| [@pdf-lib/upng](https://github.com/Hopding/upng) | 1.0.1 | MIT |
 | [@selderee/plugin-htmlparser2](https://github.com/mxxii/selderee) | 0.12.0 | MIT |
+| [@types/node](https://github.com/DefinitelyTyped/DefinitelyTyped) | 26.6.4 | MIT |
 | [@xmldom/xmldom](https://github.com/xmldom/xmldom) | 0.8.15 | MIT |
 | [@zone-eu/mailsplit](https://github.com/zone-eu/mailsplit) | 5.4.20 | (MIT OR EUPL-1.1+) |
 | [argparse](https://github.com/nodeca/argparse) | 1.0.10 | MIT |
@@ -28,6 +31,7 @@ Summary: MIT × 43, BSD-2-Clause × 9, MIT-0 × 3, BSD-3-Clause × 2, ISC × 2, 
 | [core-util-is](https://github.com/isaacs/core-util-is) | 1.0.3 | MIT |
 | [deepmerge-ts](https://github.com/RebeccaStevens/deepmerge-ts) | 8.0.2 | BSD-3-Clause |
 | [dingbat-to-unicode](https://github.com/mwilliamson/dingbat-to-unicode) | 1.0.2 | BSD-2-Clause |
+| [docx](https://github.com/dolanmiu/docx) | 9.8.1 | MIT |
 | [dom-serializer](https://github.com/cheeriojs/dom-serializer) | 2.0.0 | MIT |
 | [domelementtype](https://github.com/fb55/domelementtype) | 2.3.0 | BSD-2-Clause |
 | [domhandler](https://github.com/fb55/domhandler) | 5.0.3 | BSD-2-Clause |
@@ -37,6 +41,7 @@ Summary: MIT × 43, BSD-2-Clause × 9, MIT-0 × 3, BSD-3-Clause × 2, ISC × 2, 
 | [entities](https://github.com/fb55/entities) | 4.5.0 | BSD-2-Clause |
 | [entities](https://github.com/fb55/entities) | 7.0.1 | BSD-2-Clause |
 | [fd-slicer](https://github.com/andrewrk/node-fd-slicer) | 1.1.0 | MIT |
+| [hash.js](https://github.com/git@github.com:indutny/hash.js) | 1.1.7 | MIT |
 | [he](https://github.com/mathiasbynens/he) | 1.2.0 | MIT |
 | [html-to-text](https://github.com/html-to-text/node-html-to-text) | 10.0.1 | MIT |
 | [htmlparser2](https://github.com/fb55/htmlparser2) | 10.1.0 | MIT |
@@ -55,12 +60,15 @@ Summary: MIT × 43, BSD-2-Clause × 9, MIT-0 × 3, BSD-3-Clause × 2, ISC × 2, 
 | [lop](https://github.com/mwilliamson/lop) | 0.4.2 | BSD-2-Clause |
 | [mailparser](https://github.com/nodemailer/mailparser) | 3.9.36 | MIT |
 | [mammoth](https://github.com/mwilliamson/mammoth.js) | 1.13.0 | BSD-2-Clause |
+| [minimalistic-assert](https://github.com/calvinmetcalf/minimalistic-assert) | 1.0.1 | ISC |
+| [nanoid](https://github.com/ai/nanoid) | 6.0.2 | MIT |
 | [nodemailer](https://github.com/nodemailer/nodemailer) | 10.0.14 | MIT-0 |
 | [nodemailer](https://github.com/nodemailer/nodemailer) | 10.0.15 | MIT-0 |
 | [openai](https://github.com/openai/openai-node) | 7.28.0 | Apache-2.0 |
 | [option](https://github.com/mwilliamson/node-options) | 0.2.4 | BSD-2-Clause |
 | [pako](https://github.com/nodeca/pako) | 1.0.11 | (MIT AND Zlib) |
 | [parseley](https://github.com/mxxii/parseley) | 0.13.1 | MIT |
+| [pdf-lib](https://github.com/Hopding/pdf-lib) | 1.17.1 | MIT |
 | [peberminta](https://github.com/mxxii/peberminta) | 0.10.0 | MIT |
 | [pend](https://github.com/andrewrk/node-pend) | 1.2.0 | MIT |
 | [process-nextick-args](https://github.com/calvinmetcalf/process-nextick-args) | 2.0.1 | MIT |
@@ -68,6 +76,7 @@ Summary: MIT × 43, BSD-2-Clause × 9, MIT-0 × 3, BSD-3-Clause × 2, ISC × 2, 
 | [readable-stream](https://github.com/nodejs/readable-stream) | 2.3.8 | MIT |
 | [safe-buffer](https://github.com/feross/safe-buffer) | 5.1.2 | MIT |
 | [safer-buffer](https://github.com/ChALkeR/safer-buffer) | 2.1.2 | MIT |
+| [sax](https://github.com/ssh://git@github.com/isaacs/sax-js) | 1.6.1 | BlueOak-1.0.0 |
 | [saxes](https://github.com/lddubeau/saxes) | 5.0.1 | ISC |
 | [selderee](https://github.com/mxxii/selderee) | 0.12.0 | MIT |
 | [setimmediate](https://github.com/YuzuJS/setImmediate) | 1.0.5 | MIT |
@@ -75,12 +84,16 @@ Summary: MIT × 43, BSD-2-Clause × 9, MIT-0 × 3, BSD-3-Clause × 2, ISC × 2, 
 | [sprintf-js](https://github.com/alexei/sprintf.js) | 1.0.3 | BSD-3-Clause |
 | [string_decoder](https://github.com/nodejs/string_decoder) | 1.1.1 | MIT |
 | [tlds](https://github.com/stephenmathieson/node-tlds) | 1.261.0 | MIT |
+| [tslib](https://github.com/Microsoft/tslib) | 1.14.1 | 0BSD |
 | [uc.micro](https://github.com/markdown-it/uc.micro) | 2.1.0 | MIT |
 | [underscore](https://github.com/jashkenas/underscore) | 1.13.8 | MIT |
+| [undici-types](https://github.com/nodejs/undici) | 8.9.0 | MIT |
 | [unpdf](https://github.com/unjs/unpdf) | 1.8.1 | MIT |
 | [util-deprecate](https://github.com/TooTallNate/util-deprecate) | 1.0.2 | MIT |
 | [word-extractor](https://github.com/morungos/node-word-extractor) | 1.0.4 | MIT |
 | [xlsx](https://git.sheetjs.com/SheetJS/sheetjs) | 0.20.3 | Apache-2.0 |
+| [xml](http://github.com/dylang/node-xml) | 1.0.1 | MIT |
+| [xml-js](https://github.com/nashwaan/xml-js) | 1.6.11 | MIT |
 | [xmlbuilder](https://github.com/oozcitak/xmlbuilder-js) | 10.1.1 | MIT |
 | [xmlchars](https://github.com/lddubeau/xmlchars) | 2.2.0 | MIT |
 | [yauzl](https://github.com/thejoshwolfe/yauzl) | 2.10.0 | MIT |

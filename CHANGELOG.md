@@ -8,6 +8,35 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **Scripted injects:** a timeline of planned emails (AI-written from a brief or exact text) and
+  guidance changes, fired on an exercise clock that runs in scenario time.
+- **Outbox:** optionally review, edit, send or discard AI-written emails before they go out, and
+  write emails yourself as any customer or party.
+- **Report:** per-employee response times, unanswered mail and chases, plus conversation outcomes,
+  exported as HTML or PDF.
+- **Templates:** six ready-made scenarios (law firm, GP surgery, school, manufacturer, IT MSP,
+  stage lighting 2005) via the new **New** button.
+- **Documents:** customers and parties attach generated PDF, Word or Excel files in the format of
+  the operating year (`.doc`/`.xls` before 2007).
+- **Meeting invitations** (iCalendar), with accept/decline responses understood.
+- **Colleagues:** contacts at the same organisation copy each other in, and a senior colleague
+  can take over a chase. Customers can be generated in organisations of up to three.
+- **Memory:** customers and parties remember earlier dealings.
+- **Out-of-office replies** and **background mail** (newsletters, notifications).
+- **Realistic headers:** a consistent, era-appropriate mail program per sender (X-Mailer /
+  User-Agent, Message-ID shape, Outlook Thread-Index), local-time Date headers, and optional
+  DKIM signing with DNS records to publish.
+
+### Changed
+
+- `.senario` files are now format version 2. Version 1 files still open; version 0.1.0 of
+  the app can't open version 2 files.
+
+### Fixed
+
+- Inline styles blocked by the content security policy (message dates now align correctly).
+- Quitting no longer waits up to 30 seconds for idle SMTP connections to close.
+
 - **HTML email** (now the default): messages are sent as HTML with a plain-text alternative,
   like real mail clients. Each customer and party has a consistent, era-appropriate font and
   quoting style (Outlook *From/Sent/To/Subject* block or *"On … wrote:"*), and lists are
