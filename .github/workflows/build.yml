@@ -1,11 +1,21 @@
 name: Build
 
-# Tests and builds installers for Windows, macOS and Linux on their native runners.
-# Run it manually (Actions → Build → Run workflow) or push a tag like v0.2.0.
+# Tests and builds installers for Windows, macOS and Linux on their native runners,
+# then attaches them to the GitHub release for the tag.
+#
+# - Push a tag like v0.2.0: builds, then attaches the installers to that tag's release
+#   (creating a draft release with the changelog notes if none exists yet).
+# - Run manually (Actions → Build → Run workflow): builds and keeps the installers as
+#   workflow artifacts. Fill in "release_tag" to also attach them to that existing release.
 on:
-  workflow_dispatch:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Attach the installers to this release tag (e.g. v0.1.0). Leave empty to only build.'
+        required: false
+        default: ''
 
 jobs:
   build:
@@ -20,10 +30,13 @@ jobs:
           - os: ubuntu-latest
             target: --linux
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -42,18 +55,22 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Build installers
-        run: npx electron-builder ${{ matrix.target }} --publish never
+        run: |
+          # electron-builder treats an empty CSC_LINK as a certificate path, so remove
+          # signing variables whose secrets aren't configured (builds are then unsigned).
+          for v in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            [ -n "${!v}" ] || unset "$v"
+          done
+          [ -n "${CSC_LINK:-}" ] || export CSC_IDENTITY_AUTO_DISCOVERY=false
+          npx electron-builder ${{ matrix.target }} --publish never
         env:
-          # Code signing is used only when these secrets are configured; otherwise
-          # builds are unsigned (see docs/building.md).
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: senario-manager-${{ runner.os }}
           if-no-files-found: error
@@ -64,3 +81,39 @@ jobs:
             dist/*.AppImage
             dist/*.deb
             dist/*.rpm
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: installers
+          merge-multiple: true
+
+      - name: Attach installers to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          ls -la installers
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" installers/* --clobber
+            echo "Attached installers to existing release $TAG"
+          else
+            # Notes: this version's section of CHANGELOG.md.
+            awk -v v="${TAG#v}" '
+              $0 ~ "^## \\[" v "\\]" { on = 1; next }
+              on && /^## \[/ { exit }
+              on { print }
+            ' CHANGELOG.md > notes.md
+            printf '\n---\nBuilds are unsigned: see the [installation notes](https://github.com/%s/blob/main/docs/installation.md) for first-run warnings on Windows and macOS.\n' "$GITHUB_REPOSITORY" >> notes.md
+            gh release create "$TAG" installers/* --draft --verify-tag \
+              --title "Senario Manager ${TAG#v}" --notes-file notes.md
+            echo "Created draft release $TAG: review and publish it on GitHub"
+          fi

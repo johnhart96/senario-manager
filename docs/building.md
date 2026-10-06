@@ -41,19 +41,28 @@ There are no native modules (`npmRebuild: false`), so builds are quick.
 1. `npm ci`, `npm run check`, `npm test`
 2. `electron-builder --dir` and `npm run test:packaged`
 3. Builds the installers and uploads them as workflow artifacts.
+4. **Release job:** collects the installers from all three builds and attaches them to the
+   GitHub release for the tag. If that release doesn't exist yet, it creates a **draft** with
+   this version's section of `CHANGELOG.md` as the notes.
 
-It runs when you push a `v*` tag, or manually from **Actions → Build → Run workflow**.
+It runs when you push a `v*` tag, or manually from **Actions → Build → Run workflow**. A manual
+run only builds, unless you fill in *release_tag* to attach the installers to an existing release.
 
 ## Releasing
 
-1. Update `version` in `package.json` and add an entry to [CHANGELOG.md](../CHANGELOG.md).
-2. Commit, then tag and push:
+1. Update `version` in `package.json` and move the *Unreleased* notes in
+   [CHANGELOG.md](../CHANGELOG.md) under a new `## [x.y.z] - date` heading.
+2. Commit and push, then tag and push the tag:
    ```bash
    git tag v0.2.0
-   git push origin main --tags
+   git push origin v0.2.0
    ```
-3. When the workflow finishes, download the three artifacts and attach the installers to a new
-   [GitHub release](https://github.com/johnhart96/senario-manager/releases/new) for the tag.
+3. Wait for the **Build** run in the Actions tab to finish (about 15 minutes).
+4. Open **Releases**. There's a draft *Senario Manager 0.2.0* with every installer attached.
+   Check it, edit the notes if you like, and click **Publish release**.
+
+Don't create the release by hand before the build finishes. If you do, the workflow attaches
+the installers to it instead of creating a draft, which also works.
 
 ## Code signing
 

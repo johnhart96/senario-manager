@@ -79,7 +79,8 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "shortcutName": "Senario Manager",
-      "license": "LICENSE"
+      "license": "LICENSE",
+      "buildUniversalInstaller": false
     },
     "portable": {
       "artifactName": "Senario-Manager-${version}-portable.${ext}"
