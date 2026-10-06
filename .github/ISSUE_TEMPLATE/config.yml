@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Troubleshooting guide
+    url: https://github.com/YOUR-USER/senario-manager/blob/main/docs/troubleshooting.md
+    about: Common problems (port 25, firewalls, routing, OpenAI errors) and their fixes.
+  - name: Report a security vulnerability
+    url: https://github.com/YOUR-USER/senario-manager/security/advisories/new
+    about: Please report security issues privately.

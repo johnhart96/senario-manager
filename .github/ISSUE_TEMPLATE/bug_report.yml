@@ -1,0 +1,46 @@
+name: Bug report
+description: Something isn't working as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please remove real addresses, API keys and passwords before posting.
+        Security problems: use the Security tab → "Report a vulnerability" instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: activity
+    attributes:
+      label: Activity log
+      description: The relevant lines from the Activity tab (especially ERROR lines).
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: e.g. 0.1.0, or the commit if running from source
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows, macOS, Linux (deb/rpm), Linux (AppImage), Running from source]
+    validations:
+      required: true
+  - type: input
+    id: mailserver
+    attributes:
+      label: Mail server
+      placeholder: e.g. Exchange 2003, Postfix 3.8, hMailServer 5.6
+  - type: input
+    id: model
+    attributes:
+      label: OpenAI model
+      placeholder: e.g. gpt-4.1-mini

@@ -1,0 +1,136 @@
+{
+  "name": "senario-manager",
+  "version": "0.1.0",
+  "description": "Generates realistic AI-driven email traffic for a virtual company on a scenario mail server.",
+  "author": {
+    "name": "John Hart",
+    "email": "john@hart.london"
+  },
+  "homepage": "https://github.com/YOUR-USER/senario-manager#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOUR-USER/senario-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/YOUR-USER/senario-manager/issues"
+  },
+  "main": "src/main.js",
+  "desktopName": "senario-manager.desktop",
+  "scripts": {
+    "start": "node scripts/start.js",
+    "check": "node scripts/check.js",
+    "test": "node test/run.js",
+    "test:packaged": "node test/run.js --packaged",
+    "icon": "node scripts/start.js scripts/make-icon.js --force-device-scale-factor=1",
+    "screenshots": "node scripts/start.js scripts/screenshots.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux",
+    "licenses": "node scripts/licenses.js"
+  },
+  "license": "GPL-3.0-only",
+  "private": true,
+  "build": {
+    "appId": "london.hart.senario-manager",
+    "productName": "Senario Manager",
+    "copyright": "Copyright © 2026 John Hart",
+    "artifactName": "Senario-Manager-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "LICENSE"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "fileAssociations": [
+      {
+        "ext": "senario",
+        "name": "Senario scenario",
+        "description": "Senario Manager scenario",
+        "mimeType": "application/x-senario",
+        "role": "Editor"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Senario Manager",
+      "license": "LICENSE"
+    },
+    "portable": {
+      "artifactName": "Senario-Manager-${version}-portable.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
+      "category": "Network",
+      "synopsis": "AI-driven email traffic for scenario networks",
+      "maintainer": "John Hart <john@hart.london>",
+      "syncDesktopName": true
+    }
+  },
+  "dependencies": {
+    "jszip": "^3.10.2",
+    "mailparser": "^3.9.36",
+    "mammoth": "^1.13.0",
+    "nodemailer": "^10.0.15",
+    "openai": "^7.28.0",
+    "smtp-server": "^3.19.17",
+    "unpdf": "^1.8.1",
+    "word-extractor": "^1.0.4",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  }
+}

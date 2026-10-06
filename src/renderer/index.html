@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:" />
+  <title>Senario Manager</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">Senario<span>Manager</span></div>
+    <div class="file-box">
+      <div class="file-line">
+        <div id="fileName" class="file-name muted small" title="">Unsaved scenario</div>
+        <button id="closeFile" class="link" title="Stop using this file (the scenario stays loaded)" hidden>✕</button>
+      </div>
+      <div id="fileMeta" class="file-meta" hidden>
+        <label class="check small-check"><input type="checkbox" id="autoSave" /> Auto-save</label>
+        <span id="fileStatus" class="muted small"></span>
+      </div>
+      <div class="file-actions">
+        <button id="openFile" title="Open a .senario file (Ctrl+O)">Open</button>
+        <button id="saveFile" title="Save (Ctrl+S)">Save</button>
+        <button id="saveFileAs" title="Save as a new .senario file (Ctrl+Shift+S)">Save as</button>
+      </div>
+    </div>
+    <nav>
+      <button class="nav active" data-tab="company">Company</button>
+      <button class="nav" data-tab="customers">Customers</button>
+      <button class="nav" data-tab="parties">Parties</button>
+      <button class="nav" data-tab="settings">Settings</button>
+      <button class="nav" data-tab="run">Activity</button>
+      <button class="nav" data-tab="threads">Conversations</button>
+    </nav>
+    <div id="scenarioDate" class="scenario-date" hidden></div>
+    <div class="side-status listener-status">
+      <div id="listenDot" class="dot"></div>
+      <div>
+        <div id="listenText">Listener off</div>
+        <div id="listenSub" class="muted small"></div>
+        <button id="retryListener" class="link retry" hidden>Retry</button>
+      </div>
+    </div>
+    <div class="side-status">
+      <div id="statusDot" class="dot"></div>
+      <div>
+        <div id="statusText">Stopped</div>
+        <div id="statusSub" class="muted small"></div>
+      </div>
+    </div>
+    <div class="pace">
+      <div class="pace-head"><span>Customer pace</span><b id="paceValue">Real time</b></div>
+      <input id="paceSlider" type="range" min="0" max="7" step="1" value="0" aria-label="Customer pace" />
+      <div class="pace-ends"><span>Business real time</span><span>Faster</span></div>
+      <div id="paceHint" class="muted small"></div>
+    </div>
+    <button id="toggleRun" class="primary wide">Start scenario</button>
+  </aside>
+
+  <main>
+    <!-- COMPANY -->
+    <section id="tab-company" class="tab active">
+      <header class="page-head">
+        <h1>Scenario company</h1>
+        <p class="muted">Your organisation, exactly as you define it. Virtual customers use this to decide who to email and what about.</p>
+      </header>
+
+      <div class="card">
+        <div class="grid3">
+          <div><label for="companyName">Company name</label><input id="companyName" placeholder="Company X" /></div>
+          <div><label for="companyDomain">Email domain</label><input id="companyDomain" placeholder="companyx.local" /></div>
+          <div><label for="operatingYear">Company operating year</label><input id="operatingYear" type="number" min="1980" max="2100" placeholder="Current year" /></div>
+        </div>
+        <div class="year-row">
+          <label class="check"><input type="checkbox" id="datedEmails" /> Date emails in the operating year</label>
+          <span id="yearHint" class="muted small"></span>
+        </div>
+        <label for="description">What does the company do?</label>
+        <textarea id="description" rows="7" placeholder="e.g. Company X supplies and installs commercial refrigeration for restaurants and supermarkets across the north west. Customers place orders, book maintenance visits, report faults and query invoices..."></textarea>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Employees <span id="empCount" class="pill"></span></h2>
+          <button id="addEmployee">Add employee</button>
+        </div>
+        <p class="muted small">Include shared mailboxes too (e.g. sales@ or support@) if customers should use them.</p>
+        <div class="emp-table">
+          <div class="emp-row head"><span>Name</span><span>Email</span><span>Job role</span><span>What they handle</span><span></span></div>
+          <div id="employees"></div>
+        </div>
+      </div>
+
+      <div class="sticky-actions">
+        <button id="saveCompany" class="primary">Save company</button>
+      </div>
+    </section>
+
+    <!-- CUSTOMERS -->
+    <section id="tab-customers" class="tab">
+      <header class="page-head">
+        <h1>Virtual customers</h1>
+        <p class="muted">External people played by OpenAI. They email your employees and reply when your employees write back.</p>
+      </header>
+
+      <div class="card row">
+        <label class="inline">Generate <input id="customerCount" type="number" min="1" max="30" value="6" /> customers</label>
+        <button id="generateCustomers" class="primary">Add customers</button>
+        <button id="replaceCustomers">Replace all</button>
+        <span class="grow"></span>
+        <button id="addCustomer">Add manually</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Customers <span id="custCount" class="pill"></span></h2></div>
+        <div id="customers" class="people"></div>
+      </div>
+
+      <div class="sticky-actions">
+        <button id="saveCustomers" class="primary">Save customers</button>
+      </div>
+    </section>
+
+    <!-- PARTIES -->
+    <section id="tab-parties" class="tab">
+      <header class="page-head">
+        <h1>External parties</h1>
+        <p class="muted">Suppliers, contractors and advisers the company works with, such as the accountant, IT contractor, solicitor or a wholesaler.
+          They <b>never start conversations</b>. They only reply when one of your employees emails them, played by OpenAI from the details below.</p>
+      </header>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Parties <span id="partyCount" class="pill"></span></h2>
+          <button id="addParty">Add party</button>
+        </div>
+        <p class="muted small">Use a domain your mail server routes to this app (Settings → Reply listener lists them). It must not be the company's own domain.</p>
+        <div id="parties" class="people"></div>
+      </div>
+
+      <div class="sticky-actions">
+        <button id="saveParties" class="primary">Save parties</button>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="tab-settings" class="tab">
+      <header class="page-head">
+        <h1>Settings</h1>
+        <p class="muted">Mail is only sent to, and only accepted from, the scenario mail server below.</p>
+      </header>
+
+      <div class="card">
+        <h2>Scenario mail server (outbound)</h2>
+        <p class="muted small">Customer emails are submitted here, addressed to your employees.</p>
+        <div class="grid3">
+          <div><label>Hostname or IP</label><input data-k="mail.host" placeholder="mail.companyx.local or 10.0.0.25" /></div>
+          <div><label>SMTP port</label><input data-k="mail.smtpPort" type="number" /></div>
+          <div><label>Security</label>
+            <select data-k="mail.smtpSecurity"><option value="none">None</option><option value="starttls">STARTTLS</option><option value="tls">TLS (SMTPS)</option></select>
+          </div>
+        </div>
+        <div class="row">
+          <label class="check"><input type="checkbox" data-k="mail.allowSelfSigned" /> Accept self-signed certificates</label>
+          <label class="check"><input type="checkbox" data-k="mail.smtpAuth" id="smtpAuth" /> Server requires authentication</label>
+        </div>
+        <div class="grid3" id="authFields">
+          <div><label>Username</label><input data-k="mail.username" autocomplete="off" /></div>
+          <div><label>Password</label><input data-k="mail.password" type="password" autocomplete="off" /></div>
+        </div>
+        <div class="row"><button data-test="smtp">Test SMTP</button></div>
+      </div>
+
+      <div class="card">
+        <h2>Reply listener (inbound)</h2>
+        <p class="muted small">The app runs its own SMTP receiver for the customer domains. Connections from anything other than the mail server above are refused.</p>
+        <div class="grid3">
+          <div><label>Listen address</label><input data-k="listener.bindAddress" /></div>
+          <div><label>Listen port</label><input data-k="listener.port" type="number" /></div>
+          <div><label>Also accept from IPs (comma separated)</label><input data-k="listener.extraAllowedIps" data-type="list" placeholder="optional" /></div>
+        </div>
+        <label class="check"><input type="checkbox" data-k="listener.offerStartTls" /> Offer STARTTLS (self-signed)</label>
+        <div class="routing">
+          <div class="small muted">On the mail server, route these domains to this machine:</div>
+          <div id="routingInfo" class="mono"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>OpenAI</h2>
+        <div class="grid3">
+          <div><label>API key</label><input data-k="openai.apiKey" type="password" autocomplete="off" placeholder="sk-..." /></div>
+          <div><label>Model</label><input data-k="openai.model" /></div>
+          <div><label>Base URL (optional)</label><input data-k="openai.baseURL" placeholder="https://api.openai.com/v1" /></div>
+        </div>
+        <div class="row"><button data-test="openai">Test OpenAI</button></div>
+      </div>
+
+      <div class="card">
+        <h2>Scenario behaviour</h2>
+        <div class="grid3">
+          <div><label>Fictional TLD for customer domains</label><input data-k="scenario.customerTld" /></div>
+        </div>
+        <label>Extra guidance for customers (optional)</label>
+        <textarea data-k="scenario.guidance" rows="3" placeholder="e.g. A product recall is under way this week; several customers are unhappy about late deliveries."></textarea>
+        <div class="grid3">
+          <div class="full-row muted small">Times below are in business time. The pace slider in the sidebar speeds them all up.</div>
+          <div><label>New customer email every (min, from)</label><input data-k="scenario.minIntervalMin" type="number" min="0.5" step="0.5" /></div>
+          <div><label>…to (min)</label><input data-k="scenario.maxIntervalMin" type="number" min="0.5" step="0.5" /></div>
+          <div></div>
+          <div><label>Customer reply delay from (sec)</label><input data-k="scenario.replyDelayMinSec" type="number" min="0" /></div>
+          <div><label>…to (sec)</label><input data-k="scenario.replyDelayMaxSec" type="number" min="0" /></div>
+          <div></div>
+          <div><label>Working day starts (hour)</label><input data-k="scenario.workStartHour" type="number" min="0" max="23" /></div>
+          <div><label>Working day ends (hour)</label><input data-k="scenario.workEndHour" type="number" min="1" max="24" /></div>
+        </div>
+        <label class="check"><input type="checkbox" data-k="scenario.workingHoursOnly" /> Only send new emails and follow-ups during working hours, Mon–Fri (real-time pace only)</label>
+      </div>
+
+      <div class="card">
+        <h2>Follow-ups</h2>
+        <label class="check"><input type="checkbox" data-k="scenario.followUpEnabled" /> Customers chase emails that haven't been answered</label>
+        <div class="grid3">
+          <div><label>Chase after (hours, from)</label><input data-k="scenario.followUpMinHours" type="number" min="0.1" step="0.5" /></div>
+          <div><label>…to (hours)</label><input data-k="scenario.followUpMaxHours" type="number" min="0.1" step="0.5" /></div>
+          <div><label>Max follow-ups per email</label><input data-k="scenario.followUpMax" type="number" min="1" max="5" /></div>
+        </div>
+        <p class="muted small">The first chase is a polite nudge, the second is firmer, and later ones escalate, sometimes copying in another member of staff.
+          Each chase waits a little longer than the last. Any reply from the company cancels pending chases on that conversation.</p>
+        <label class="check"><input type="checkbox" data-k="scenario.partyFollowUps" /> External parties also chase questions they asked that went unanswered</label>
+      </div>
+
+      <div class="sticky-actions">
+        <button id="saveSettings" class="primary">Save settings</button>
+      </div>
+    </section>
+
+    <!-- RUN -->
+    <section id="tab-run" class="tab">
+      <header class="page-head">
+        <h1>Activity</h1>
+        <p class="muted">Live log of customer emails sent and replies received.</p>
+      </header>
+      <div class="card row">
+        <select id="sendFrom" class="auto"><option value="">Random customer</option></select>
+        <button id="sendNow">Send an email now</button>
+        <span class="grow"></span>
+        <button id="resetConv" class="danger">Clear conversation history</button>
+      </div>
+      <div id="log" class="log"></div>
+    </section>
+
+    <!-- THREADS -->
+    <section id="tab-threads" class="tab split">
+      <div class="thread-list" id="threadList"></div>
+      <div class="thread-view" id="threadView"><p class="muted center">Select a conversation</p></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="renderer.js"></script>
+</body>
+</html>

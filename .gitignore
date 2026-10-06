@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+
+# Scenario files can contain conversations and, if saved with them, credentials.
+*.senario
+
+# OS clutter
+.DS_Store
+Thumbs.db

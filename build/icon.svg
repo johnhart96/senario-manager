@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2a3550"/>
+      <stop offset="1" stop-color="#141821"/>
+    </linearGradient>
+    <linearGradient id="badge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5b9bff"/>
+      <stop offset="1" stop-color="#2f6fe0"/>
+    </linearGradient>
+  </defs>
+  <!-- macOS-style rounded square with margin -->
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <!-- envelope -->
+  <rect x="212" y="300" width="600" height="420" rx="48" fill="#e6e8eb"/>
+  <path d="M236 330 L512 540 L788 330" fill="none" stroke="#9aa3b2" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- reply badge -->
+  <circle cx="742" cy="700" r="170" fill="url(#badge)" stroke="#141821" stroke-width="28"/>
+  <path d="M800 770 C800 690 760 650 680 650 L680 610 L600 680 L680 750 L680 710 C730 710 770 730 800 770 Z" fill="#ffffff"/>
+</svg>
