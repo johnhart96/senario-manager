@@ -23,6 +23,10 @@ All notable changes to this project are documented here. The format follows
   can take over a chase. Customers can be generated in organisations of up to three.
 - **Memory:** customers and parties remember earlier dealings.
 - **Out-of-office replies** and **background mail** (newsletters, notifications).
+- **Auto-updates** from GitHub Releases: downloads in the background and installs on restart
+  (Windows installer, Linux AppImage/.deb/.rpm, signed macOS), or notifies with a download link
+  (portable Windows, unsigned macOS). Can be switched off; `SENARIO_UPDATE_FEED` points at a
+  self-hosted mirror.
 - **Realistic headers:** a consistent, era-appropriate mail program per sender (X-Mailer /
   User-Agent, Message-ID shape, Outlook Thread-Index), local-time Date headers, and optional
   DKIM signing with DNS records to publish.

@@ -3,7 +3,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { app, BrowserWindow, dialog, ipcMain, safeStorage } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } = require('electron');
 const { Store } = require('./core/store');
 const { Engine } = require('./core/engine');
 const ai = require('./core/ai');
@@ -12,10 +12,13 @@ const { saveSenario, loadSenario } = require('./core/senario-file');
 const report = require('./core/report');
 const templates = require('./core/templates');
 const documents = require('./core/documents');
+const { Updater } = require('./updater');
 
 let win;
 let store;
 let engine;
+let updater;
+let quittingForUpdate = false;
 
 // Auto-save to the open .senario file: written shortly after changes settle,
 // and at least every AUTOSAVE_MAX_WAIT while changes keep coming.
@@ -54,7 +57,7 @@ function createWindow() {
   // Closing the window shuts down the reply listener, so make that explicit.
   let confirmedClose = false;
   win.on('close', (e) => {
-    if (confirmedClose || !engine || (!engine.running && !engine.listener)) return;
+    if (confirmedClose || quittingForUpdate || !engine || (!engine.running && !engine.listener)) return;
     const choice = dialog.showMessageBoxSync(win, {
       type: 'warning',
       buttons: ['Keep running', 'Quit'],
@@ -189,6 +192,28 @@ function wire() {
   handle('templates:load', (id) => newFromTemplate(id));
 
   handle('dkim:records', () => engine.dkimRecords());
+
+  // Updates from GitHub Releases.
+  handle('update:status', () => ({ ...updater.status, autoCheck: store.data.appState.autoUpdate !== false, releasesUrl: updater.releasesUrl }));
+  handle('update:check', () => updater.check());
+  handle('update:download', () => updater.download());
+  handle('update:install', async () => {
+    // Stop cleanly and finish any pending save before the installer takes over.
+    quittingForUpdate = true;
+    await engine.shutdown().catch(() => {});
+    autosaveNow();
+    store.flush();
+    updater.install();
+  });
+  handle('update:setAuto', (on) => {
+    store.data.appState.autoUpdate = !!on;
+    store.save();
+    if (on) updater.check().catch(() => {});
+    return on;
+  });
+  handle('update:openPage', () => {
+    if (updater.releasesUrl) shell.openExternal(updater.releasesUrl);
+  });
 
   // Save a document a customer attached (re-generated from its stored description).
   handle('attachment:save', async (threadId, messageId, idx) => {
@@ -484,12 +509,15 @@ app.whenReady().then(() => {
   store = new Store(app.getPath('userData'), safeStorage);
   engine = new Engine(store);
   store.onChange = scheduleAutosave;
+  updater = new Updater({ app, isEnabled: () => store.data.appState.autoUpdate !== false, log: (level, msg) => engine.log(level, msg) });
+  updater.on('status', (s) => send('update-status', { ...s, autoCheck: store.data.appState.autoUpdate !== false, releasesUrl: updater.releasesUrl }));
   wire();
   createWindow();
   updateTitle();
   // Start listening for replies straight away; errors are shown in the UI.
   if (store.settings.mail.host) engine.openListener().catch(() => {});
   if (pendingOpen) win.webContents.once('did-finish-load', () => openFromOs(pendingOpen));
+  updater.init();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

@@ -37,6 +37,7 @@
       <button class="nav" data-tab="outbox">Outbox <span id="outboxBadge" class="badge" hidden></span></button>
       <button class="nav" data-tab="report">Report</button>
     </nav>
+    <button id="updateBanner" class="update-banner" hidden></button>
     <div id="scenarioDate" class="scenario-date" hidden></div>
     <div class="side-status listener-status">
       <div id="listenDot" class="dot"></div>
@@ -287,6 +288,24 @@
         <label class="check"><input type="checkbox" data-k="scenario.partyFollowUps" /> External parties also chase questions they asked that went unanswered</label>
       </div>
 
+      <div class="card" id="updatesCard">
+        <h2>Updates</h2>
+        <div class="update-line">
+          <div>
+            <div>Senario Manager <b id="appVersion"></b></div>
+            <div id="updateState" class="muted small"></div>
+          </div>
+          <span class="grow"></span>
+          <button id="checkUpdate">Check now</button>
+          <button id="downloadUpdate" hidden>Download</button>
+          <button id="installUpdate" class="primary" hidden>Restart and install</button>
+          <button id="openReleasePage" hidden>Open download page</button>
+        </div>
+        <label class="check"><input type="checkbox" id="autoUpdate" /> Check for updates automatically (contacts github.com)</label>
+        <p id="updateMode" class="muted small"></p>
+        <pre id="updateNotes" class="mono routing" hidden></pre>
+      </div>
+
       <div class="card">
         <h2>Background mail</h2>
         <label class="check"><input type="checkbox" data-k="scenario.backgroundEnabled" /> Send newsletters and automated notifications that need no reply</label>
@@ -395,6 +414,7 @@
   <script src="injects.js"></script>
   <script src="report.js"></script>
   <script src="templates.js"></script>
+  <script src="updates.js"></script>
   <script src="boot.js"></script>
 </body>
 </html>

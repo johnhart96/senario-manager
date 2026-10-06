@@ -29,6 +29,9 @@ attachments from email, so these areas matter most:
 - **Credentials:** exposure of the OpenAI API key or SMTP password (including through `.senario`
   files saved *without* credentials).
 - **The UI:** script injection from email content, attachment text or `.senario` files.
+- **Updates:** anything that could make an installed copy accept an update not published in
+  this repository's GitHub Releases. Downloads are checked against the SHA-512 hashes in the
+  release's `latest*.yml`. Signed builds are also verified by the operating system.
 
 Weaknesses in third-party dependencies should be reported upstream. Let us know too if Senario
 Manager is affected and needs an update.

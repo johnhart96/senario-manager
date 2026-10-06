@@ -11,6 +11,7 @@ CommonJS JavaScript, and the UI is a single HTML page with vanilla JS.
 ```
 src/
 ├── main.js                 Electron main process: window, IPC, .senario open/save/auto-save
+├── updater.js              Auto-updates from GitHub Releases (electron-updater)
 ├── preload.js              Exposes a small window.api to the UI (contextIsolation + sandbox)
 ├── renderer/
 │   ├── index.html          All tabs
@@ -195,7 +196,8 @@ lines and display.
 Changes must keep these true. The tests check them.
 
 1. **One outbound host.** `mail.serverHost()` is the only source of the SMTP host. Nothing does
-   MX lookups.
+   MX lookups. The only other network connections are the OpenAI API and, optionally, GitHub
+   Releases for update checks (`updater.js`, which can be switched off).
 2. **Scenario-only recipients.** `engine.checkRecipients()` refuses any recipient that is not on a
    company domain or a known customer/party address (a colleague copied in), and every message
    must reach the company. Background senders must use the fictional TLD.

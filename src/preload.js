@@ -31,6 +31,12 @@ contextBridge.exposeInMainWorld('api', {
   loadTemplate: (id) => call('templates:load', id),
   dkimRecords: () => call('dkim:records'),
   saveAttachment: (threadId, messageId, idx) => call('attachment:save', threadId, messageId, idx),
+  updateStatus: () => call('update:status'),
+  checkForUpdate: () => call('update:check'),
+  downloadUpdate: () => call('update:download'),
+  installUpdate: () => call('update:install'),
+  setAutoUpdate: (on) => call('update:setAuto', on),
+  openReleasePage: () => call('update:openPage'),
   getParties: () => call('parties:get'),
   setParties: (list) => call('parties:set', list),
   localIps: () => call('net:localIps'),
@@ -53,7 +59,7 @@ contextBridge.exposeInMainWorld('api', {
   testOpenAI: () => call('test:openai'),
   testSmtp: () => call('test:smtp'),
   on: (channel, fn) => {
-    const allowed = ['log', 'status', 'threads-changed', 'state-loaded', 'file-status', 'outbox-changed', 'injects-changed', 'settings-changed'];
+    const allowed = ['log', 'status', 'threads-changed', 'state-loaded', 'file-status', 'outbox-changed', 'injects-changed', 'settings-changed', 'update-status'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, (_e, payload) => fn(payload));
   },

@@ -34,5 +34,6 @@ window.api.on('settings-changed', async () => {
   await loadOutbox();
   setStatus(await window.api.status());
   showFile(await window.api.currentFile());
+  renderUpdate(await window.api.updateStatus());
   (await window.api.getLog()).forEach(appendLog);
 })();

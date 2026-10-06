@@ -83,6 +83,12 @@ Changing these settings, or the mail server address, rebinds it immediately.
 |---|---|---|
 | Hold AI-written emails for review | off | New emails, replies and chases wait in the Outbox until sent or discarded. Also stored as `scenario.reviewBeforeSend`. |
 
+## Updates
+
+| Setting | Default | Description |
+|---|---|---|
+| Check for updates automatically | on | Checks GitHub Releases 15 s after start-up and every 6 hours, and downloads updates in the background where the install supports it. Stored per installation, not in `.senario` files. |
+
 ## Pace (sidebar)
 
 | Setting | Default | Description |

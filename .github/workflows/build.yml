@@ -3,8 +3,9 @@ name: Build
 # Tests and builds installers for Windows, macOS and Linux on their native runners,
 # then attaches them to the GitHub release for the tag.
 #
-# - Push a tag like v0.2.0: builds, then attaches the installers to that tag's release
-#   (creating a draft release with the changelog notes if none exists yet).
+# - Push a tag like v0.2.0: builds, then attaches the installers and update files to that
+#   tag's release (creating a draft release with the changelog notes if none exists yet).
+#   Installed copies update themselves once the release is published.
 # - Run manually (Actions → Build → Run workflow): builds and keeps the installers as
 #   workflow artifacts. Fill in "release_tag" to also attach them to that existing release.
 on:
@@ -74,6 +75,8 @@ jobs:
         with:
           name: senario-manager-${{ runner.os }}
           if-no-files-found: error
+          # Installers plus the update metadata electron-updater reads
+          # (latest.yml, latest-mac.yml, latest-linux.yml) and block maps.
           path: |
             dist/*.exe
             dist/*.dmg
@@ -81,6 +84,8 @@ jobs:
             dist/*.AppImage
             dist/*.deb
             dist/*.rpm
+            dist/latest*.yml
+            dist/*.blockmap
 
   release:
     needs: build

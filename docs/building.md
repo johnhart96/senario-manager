@@ -45,7 +45,20 @@ There are no native modules (`npmRebuild: false`), so builds are quick.
    GitHub release for the tag. If that release doesn't exist yet, it creates a **draft** with
    this version's section of `CHANGELOG.md` as the notes.
 
-It runs when you push a `v*` tag, or manually from **Actions → Build → Run workflow**. A manual
+It runs when you push a `v*` tag, or manually from **Actions → Build → Run workflow**.
+
+### Update files
+
+`build.publish` in `package.json` points electron-builder at this GitHub repository. Every build
+then:
+
+- embeds `app-update.yml`, which tells installed copies where to look
+- writes `latest.yml` (Windows), `latest-mac.yml` and `latest-linux.yml`, which describe the release
+  with file sizes and SHA-512 hashes, plus `.blockmap` files for differential downloads
+
+The workflow uploads these alongside the installers, and electron-updater reads them from the
+**latest published release**. Drafts are invisible to installed copies, so nothing updates until
+you click **Publish release**. A manual
 run only builds, unless you fill in *release_tag* to attach the installers to an existing release.
 
 ## Releasing
@@ -64,10 +77,16 @@ run only builds, unless you fill in *release_tag* to attach the installers to an
 Don't create the release by hand before the build finishes. If you do, the workflow attaches
 the installers to it instead of creating a draft, which also works.
 
+### Self-hosted updates (air-gapped labs)
+
+Set the environment variable `SENARIO_UPDATE_FEED` to the URL of any web server that holds a
+release's files (`latest*.yml`, the installers and the `.blockmap` files), and installed copies
+update from there instead of GitHub. Example: `SENARIO_UPDATE_FEED=http://10.0.0.5/senario/`.
+
 ## Code signing
 
 Unsigned builds work, but users see warnings: Windows SmartScreen, and macOS Gatekeeper blocking
-the first launch. To sign, add these repository secrets (**Settings → Secrets and variables →
+the first launch. Unsigned macOS builds also can't update themselves; they only notify. To sign, add these repository secrets (**Settings → Secrets and variables →
 Actions**). The workflow uses them automatically when present.
 
 | Secret | Purpose |

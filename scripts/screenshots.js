@@ -130,6 +130,7 @@ const SHOTS = [
   ['outbox', `document.querySelector('[data-tab=outbox]').click()`],
   ['report', `document.querySelector('[data-tab=report]').click()`],
   ['templates', `document.querySelector('[data-tab=company]').click(); document.querySelector('#newScenario').click()`],
+  ['updates', `document.querySelector('#closeModal').click(); document.querySelector('[data-tab=settings]').click()`, `document.querySelector('#updatesCard').scrollIntoView({ block: 'center' })`],
 ];
 
 app.whenReady().then(async () => {

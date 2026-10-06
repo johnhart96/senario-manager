@@ -130,6 +130,23 @@ Installed builds and `npm start` share this folder. The OpenAI API key and SMTP 
 encrypted with the operating system's keychain where available. Save to a
 [`.senario` file](senario-file-format.md) to keep a scenario somewhere else or share it.
 
+## Updating
+
+Installed copies update themselves from GitHub Releases. See
+[User guide → Updates](user-guide.md#updates).
+
+| Install | Updates |
+|---|---|
+| Windows installer | Automatic: downloads in the background, installs on restart |
+| Windows portable | Notifies you; download the new version yourself |
+| macOS (signed builds) | Automatic |
+| macOS (unsigned builds) | Notifies you, because macOS only lets signed apps replace themselves |
+| Linux AppImage | Automatic: the AppImage file is replaced on restart |
+| Linux .deb / .rpm | Automatic, asking for an administrator password to install |
+
+Version 0.1.0 has no updater. If you have it, install the next version by hand once, and later
+versions will update themselves.
+
 ## Uninstalling
 
 Use your system's normal uninstall method. The data folder above is left in place; delete it

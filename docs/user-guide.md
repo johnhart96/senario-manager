@@ -22,6 +22,7 @@ tabs: pace, follow-ups, attachments, the operating year and scenario files.
 - [Attachments](#attachments)
 - [Operating year](#operating-year)
 - [Saving, opening and auto-save](#saving-opening-and-auto-save)
+- [Updates](#updates)
 - [Tips for a convincing scenario](#tips-for-a-convincing-scenario)
 
 ## The window
@@ -444,6 +445,27 @@ customers, parties, conversations, queued replies and chases, and the activity l
 - Double-clicking a `.senario` file opens it in the app (installed builds).
 
 The format is plain SQLite. See [.senario files](senario-file-format.md).
+
+## Updates
+
+![Updates in Settings](images/updates.png)
+
+Installed copies check GitHub for new versions 15 seconds after start-up, then every 6 hours.
+When one is published:
+
+- **Windows installer, Linux AppImage, .deb and .rpm, and signed macOS builds:** it downloads
+  in the background. A blue **Update ready: restart to install** banner appears in the sidebar,
+  and the update installs the next time the app restarts, or straight away with **Settings →
+  Updates → Restart and install**. The app never restarts by itself, so a running exercise is
+  never interrupted. Installing stops the scenario cleanly; queued replies and the exercise clock
+  resume when you start again. `.deb`/`.rpm` installs ask for an administrator password.
+- **Windows portable `.exe` and unsigned macOS builds:** these can't replace themselves, so the
+  banner says a new version is available and **Open download page** takes you to it.
+
+Untick **Check for updates automatically** to stop the app contacting github.com, for example on
+an isolated network. **Check now** still works on demand. Without internet access the check
+fails quietly, with one line in the Activity log. The setting belongs to this installation and is
+not stored in `.senario` files.
 
 ## Tips for a convincing scenario
 

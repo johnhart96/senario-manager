@@ -332,3 +332,11 @@ select.small-select { width: auto; min-width: 0; padding: 4px 6px; }
 .nav-sep { margin: 2px 4px; }
 .file-meta .small-check { white-space: nowrap; }
 .pace { padding-top: 10px; }
+
+/* ---------- updates ---------- */
+.update-line { display: flex; align-items: center; gap: 10px; }
+#updateState.err { color: var(--warn); }
+.update-banner { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 12px; padding: 6px 8px; margin-top: auto; }
+.update-banner:hover { background: var(--accent-2); }
+.update-banner:not([hidden]) + .scenario-date { margin-top: 0; }
+.update-banner:not([hidden]) ~ .listener-status { margin-top: 0; }

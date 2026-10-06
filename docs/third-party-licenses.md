@@ -13,9 +13,9 @@ don't edit it by hand.
 |---|---|---|
 | [Electron](https://github.com/electron/electron) (includes Chromium and Node.js; see `LICENSES.chromium.html` in the installed app) | 44.5.1 | MIT |
 
-## Packages bundled in the app (78)
+## Packages bundled in the app (93)
 
-Summary: MIT × 53, BSD-2-Clause × 9, ISC × 3, MIT-0 × 3, BSD-3-Clause × 2, Apache-2.0 × 2, (MIT OR EUPL-1.1+) × 1, BSD × 1, (MIT OR GPL-3.0-or-later) × 1, (MIT AND Zlib) × 1, BlueOak-1.0.0 × 1, 0BSD × 1.
+Summary: MIT × 65, BSD-2-Clause × 9, ISC × 5, MIT-0 × 3, BSD-3-Clause × 2, Apache-2.0 × 2, (MIT OR EUPL-1.1+) × 1, Python-2.0 × 1, BSD × 1, (MIT OR GPL-3.0-or-later) × 1, (MIT AND Zlib) × 1, BlueOak-1.0.0 × 1, 0BSD × 1.
 
 | Package | Version | License |
 |---|---|---|
@@ -25,10 +25,13 @@ Summary: MIT × 53, BSD-2-Clause × 9, ISC × 3, MIT-0 × 3, BSD-3-Clause × 2, 
 | [@types/node](https://github.com/DefinitelyTyped/DefinitelyTyped) | 26.6.4 | MIT |
 | [@xmldom/xmldom](https://github.com/xmldom/xmldom) | 0.8.15 | MIT |
 | [@zone-eu/mailsplit](https://github.com/zone-eu/mailsplit) | 5.4.20 | (MIT OR EUPL-1.1+) |
+| [argparse](https://github.com/nodeca/argparse) | 2.0.1 | Python-2.0 |
 | [argparse](https://github.com/nodeca/argparse) | 1.0.10 | MIT |
 | [base64-js](https://github.com/beatgammit/base64-js) | 1.5.1 | MIT |
 | [buffer-crc32](https://github.com/brianloveswords/buffer-crc32) | 0.2.13 | MIT |
+| [builder-util-runtime](https://github.com/electron-userland/electron-builder) | 9.7.0 | MIT |
 | [core-util-is](https://github.com/isaacs/core-util-is) | 1.0.3 | MIT |
+| [debug](https://github.com/debug-js/debug) | 4.4.3 | MIT |
 | [deepmerge-ts](https://github.com/RebeccaStevens/deepmerge-ts) | 8.0.2 | BSD-3-Clause |
 | [dingbat-to-unicode](https://github.com/mwilliamson/dingbat-to-unicode) | 1.0.2 | BSD-2-Clause |
 | [docx](https://github.com/dolanmiu/docx) | 9.8.1 | MIT |
@@ -37,10 +40,13 @@ Summary: MIT × 53, BSD-2-Clause × 9, ISC × 3, MIT-0 × 3, BSD-3-Clause × 2, 
 | [domhandler](https://github.com/fb55/domhandler) | 5.0.3 | BSD-2-Clause |
 | [domutils](https://github.com/fb55/domutils) | 3.2.2 | BSD-2-Clause |
 | [duck](https://github.com/mwilliamson/duck.js) | 0.1.12 | BSD |
+| [electron-updater](https://github.com/electron-userland/electron-builder) | 6.8.9 | MIT |
 | [encoding-japanese](https://github.com/polygonplanet/encoding.js) | 2.4.0 | MIT |
 | [entities](https://github.com/fb55/entities) | 4.5.0 | BSD-2-Clause |
 | [entities](https://github.com/fb55/entities) | 7.0.1 | BSD-2-Clause |
 | [fd-slicer](https://github.com/andrewrk/node-fd-slicer) | 1.1.0 | MIT |
+| [fs-extra](https://github.com/jprichardson/node-fs-extra) | 10.1.0 | MIT |
+| [graceful-fs](https://github.com/isaacs/node-graceful-fs) | 4.2.11 | ISC |
 | [hash.js](https://github.com/git@github.com:indutny/hash.js) | 1.1.7 | MIT |
 | [he](https://github.com/mathiasbynens/he) | 1.2.0 | MIT |
 | [html-to-text](https://github.com/html-to-text/node-html-to-text) | 10.0.1 | MIT |
@@ -50,17 +56,23 @@ Summary: MIT × 53, BSD-2-Clause × 9, ISC × 3, MIT-0 × 3, BSD-3-Clause × 2, 
 | [inherits](https://github.com/isaacs/inherits) | 2.0.4 | ISC |
 | [ipv6-normalize](https://github.com/poying/ipv6-normalize) | 1.0.1 | MIT |
 | [isarray](https://github.com/juliangruber/isarray) | 1.0.0 | MIT |
+| [js-yaml](https://github.com/nodeca/js-yaml) | 4.3.2 | MIT |
+| [jsonfile](https://github.com/git@github.com:jprichardson/node-jsonfile) | 6.2.1 | MIT |
 | [jszip](https://github.com/Stuk/jszip) | 3.10.2 | (MIT OR GPL-3.0-or-later) |
+| [lazy-val](https://github.com/develar/lazy-val) | 1.0.5 | MIT |
 | [leac](https://github.com/mxxii/leac) | 0.7.0 | MIT |
 | [libbase64](https://github.com/nodemailer/libbase64) | 1.3.2 | MIT |
 | [libmime](https://github.com/nodemailer/libmime) | 5.4.7 | MIT |
 | [libqp](https://github.com/nodemailer/libqp) | 2.1.2 | MIT |
 | [lie](https://github.com/calvinmetcalf/lie) | 3.3.0 | MIT |
 | [linkify-it](https://github.com/markdown-it/linkify-it) | 5.0.2 | MIT |
+| [lodash.escaperegexp](https://github.com/lodash/lodash) | 4.1.2 | MIT |
+| [lodash.isequal](https://github.com/lodash/lodash) | 4.5.0 | MIT |
 | [lop](https://github.com/mwilliamson/lop) | 0.4.2 | BSD-2-Clause |
 | [mailparser](https://github.com/nodemailer/mailparser) | 3.9.36 | MIT |
 | [mammoth](https://github.com/mwilliamson/mammoth.js) | 1.13.0 | BSD-2-Clause |
 | [minimalistic-assert](https://github.com/calvinmetcalf/minimalistic-assert) | 1.0.1 | ISC |
+| [ms](https://github.com/vercel/ms) | 2.1.3 | MIT |
 | [nanoid](https://github.com/ai/nanoid) | 6.0.2 | MIT |
 | [nodemailer](https://github.com/nodemailer/nodemailer) | 10.0.14 | MIT-0 |
 | [nodemailer](https://github.com/nodemailer/nodemailer) | 10.0.15 | MIT-0 |
@@ -79,15 +91,18 @@ Summary: MIT × 53, BSD-2-Clause × 9, ISC × 3, MIT-0 × 3, BSD-3-Clause × 2, 
 | [sax](https://github.com/ssh://git@github.com/isaacs/sax-js) | 1.6.1 | BlueOak-1.0.0 |
 | [saxes](https://github.com/lddubeau/saxes) | 5.0.1 | ISC |
 | [selderee](https://github.com/mxxii/selderee) | 0.12.0 | MIT |
+| [semver](https://github.com/npm/node-semver) | 7.7.4 | ISC |
 | [setimmediate](https://github.com/YuzuJS/setImmediate) | 1.0.5 | MIT |
 | [smtp-server](https://github.com/nodemailer/smtp-server) | 3.19.17 | MIT-0 |
 | [sprintf-js](https://github.com/alexei/sprintf.js) | 1.0.3 | BSD-3-Clause |
 | [string_decoder](https://github.com/nodejs/string_decoder) | 1.1.1 | MIT |
+| [tiny-typed-emitter](https://github.com/binier/tiny-typed-emitter) | 2.1.0 | MIT |
 | [tlds](https://github.com/stephenmathieson/node-tlds) | 1.261.0 | MIT |
 | [tslib](https://github.com/Microsoft/tslib) | 1.14.1 | 0BSD |
 | [uc.micro](https://github.com/markdown-it/uc.micro) | 2.1.0 | MIT |
 | [underscore](https://github.com/jashkenas/underscore) | 1.13.8 | MIT |
 | [undici-types](https://github.com/nodejs/undici) | 8.9.0 | MIT |
+| [universalify](https://github.com/RyanZim/universalify) | 2.0.1 | MIT |
 | [unpdf](https://github.com/unjs/unpdf) | 1.8.1 | MIT |
 | [util-deprecate](https://github.com/TooTallNate/util-deprecate) | 1.0.2 | MIT |
 | [word-extractor](https://github.com/morungos/node-word-extractor) | 1.0.4 | MIT |

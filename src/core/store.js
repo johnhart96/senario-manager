@@ -88,7 +88,7 @@ const DEFAULT_DATA = {
   dkimKeys: {}, // domain -> { selector, privateKey, publicKey }
   log: [], // activity log: { time, level, message }
   // App-level state, never written into .senario files.
-  appState: { currentFile: null, includeSecrets: false, autoSave: true },
+  appState: { currentFile: null, includeSecrets: false, autoSave: true, autoUpdate: true },
 };
 
 const MAX_LOG = 5000;

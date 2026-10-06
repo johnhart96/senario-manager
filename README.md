@@ -46,6 +46,7 @@ the company's mail server, and it plays the outside world:
 - **Trainee report:** response times, unanswered mail and outcomes per employee, exported as
   HTML or PDF.
 - **Six ready-made templates**, from a law firm to a GP surgery.
+- **Updates itself** from GitHub Releases. This can be switched off for isolated networks.
 - **Any era:** set the company's operating year (e.g. 2005) and dates, technology, prices and
   events all fit that year.
 
@@ -135,7 +136,8 @@ whole scenario to a `.senario` file to reuse or share it.
 
 Senario Manager is meant for **isolated scenario, lab and training networks that you control**.
 Its design keeps traffic there: it sends to exactly one configured mail server, only to the
-scenario company's own domain, and accepts replies only from that server. Generated customer
+scenario company's own domain, and accepts replies only from that server. Beyond that it only
+contacts the OpenAI API and, unless you turn it off, GitHub to check for updates. Generated customer
 domains use a fictional TLD (`.local` by default) so they can't collide with real organisations.
 
 Don't use it to send mail to real people or real organisations, or anywhere the recipients
