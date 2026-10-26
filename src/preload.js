@@ -56,6 +56,8 @@ contextBridge.exposeInMainWorld('api', {
   closeFile: () => call('file:close'),
   listThreads: () => call('threads:list'),
   getThread: (id) => call('threads:get', id),
+  endThread: (id) => call('threads:end', id),
+  removeThread: (id) => call('threads:remove', id),
   testOpenAI: () => call('test:openai'),
   testSmtp: () => call('test:smtp'),
   on: (channel, fn) => {

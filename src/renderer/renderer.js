@@ -652,9 +652,17 @@ async function showThread(id) {
   currentThread = id;
   $$('.thread-item').forEach((el) => el.classList.toggle('active', el.dataset.id === id));
   const t = await window.api.getThread(id);
-  if (!t) return;
+  if (!t) {
+    currentThread = null;
+    $('#threadView').innerHTML = '<p class="muted center">Select a conversation</p>';
+    return;
+  }
+  const open = !t.background && t.status !== 'resolved';
   $('#threadView').innerHTML =
-    `<h1>${esc(t.subject)}</h1>` +
+    `<div class="row-head thread-head"><h1>${esc(t.subject)}</h1><div class="row">
+      ${open ? '<button id="endThread" title="Mark it resolved and cancel queued replies and chases">End conversation</button>' : ''}
+      <button id="removeThread" class="danger" title="Delete it from the app. Mail already delivered is not touched.">Remove</button>
+    </div></div>` +
     t.messages
       .map(
         (m) => `<div class="msg ${m.direction}">
@@ -682,6 +690,19 @@ function kindLabel(m) {
 }
 
 $('#threadView').addEventListener('click', (e) => {
+  if (e.target.id === 'endThread') {
+    return busy(e.target, async () => {
+      await window.api.endThread(currentThread);
+      toast('Conversation ended');
+    });
+  }
+  if (e.target.id === 'removeThread') {
+    if (!confirm('Remove this conversation? Its queued replies and chases are cancelled. Mail already delivered is not touched.')) return;
+    return busy(e.target, async () => {
+      await window.api.removeThread(currentThread);
+      toast('Conversation removed');
+    });
+  }
   const b = e.target.closest('.save-att');
   if (!b) return;
   e.preventDefault();

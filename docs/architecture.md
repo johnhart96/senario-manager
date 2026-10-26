@@ -225,7 +225,7 @@ Changes must keep these true. The tests check them.
 | `e2e.test.js` | Full loop against a local SMTP sink and the real listener: sending, replies, threading, refusals, auto-replies, follow-ups, pace, attachments |
 | `operating-year.test.js` | Prompts, `Date:` headers and quoted dates in a past year, sent through a fake OpenAI server |
 | `parties.test.js` | Parties never initiate on their own, *Send an email now* as a party, supplier framing, optional chasing, persistence |
-| `exercises.test.js` | One conversation at a time, review queue, manual compose, mail-program headers, generated documents, meeting invitations and responses, colleagues and escalation, memory, out-of-office, background mail, injects on the exercise clock, the report, DKIM, templates, `.senario` v2 |
+| `exercises.test.js` | One conversation at a time, ending and removing conversations, review queue, manual compose, mail-program headers, generated documents, meeting invitations and responses, colleagues and escalation, memory, out-of-office, background mail, injects on the exercise clock, the report, DKIM, templates, `.senario` v2 |
 | `html-email.test.js` | HTML composition: escaping, lists, era fonts, both quoting styles, multipart/alternative over SMTP, plain-text mode |
 | `attachments.test.js` | Every supported format, plus corrupt and unsupported files and inline logos |
 | `senario-file.test.js` | Save/load round trip, credentials, overwrite, invalid files |

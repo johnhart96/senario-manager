@@ -1,8 +1,8 @@
 'use strict';
 // Exercise and realism features: review queue, manual compose, headers, documents,
 // meeting invitations, colleagues and escalation, memory, out-of-office, background
-// mail, scripted injects, the report, templates, DKIM, .senario persistence and one
-// conversation at a time per customer.
+// mail, scripted injects, the report, templates, DKIM, .senario persistence, one
+// conversation at a time per customer, and ending or removing a conversation.
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
@@ -357,6 +357,23 @@ const DANA = 'dana@bright.local';
   const heldFrom = store.data.outbox.filter((d) => !d.threadId).map((d) => d.sender.toLowerCase());
   assert.deepStrictEqual(new Set(heldFrom), new Set([outlookAddr.toLowerCase(), DANA]), 'a new email in the Outbox counts as busy');
   console.log('OK 15: one conversation at a time (busy customers skipped, explicit picks allowed, Outbox counts)');
+
+  // 16. Ending and removing a conversation.
+  store.settings.scenario.reviewBeforeSend = false;
+  Object.assign(store.settings.scenario, { replyDelayMinSec: 3600, replyDelayMaxSec: 3600 });
+  await toApp({ from: 'Ann Accounts <ann@co.local>', to: DANA, subject: 'Your account', messageId: '<end-1@co.local>', text: 'Hi Dana, a quick question about your account.' });
+  let t16;
+  assert.ok(await until(() => (t16 = Object.values(store.data.threads).find((t) => t.subject === 'Your account'))));
+  assert.ok(await until(() => store.data.pending.some((j) => j.threadId === t16.id)), 'reply queued');
+  engine.endThread(t16.id);
+  assert.strictEqual(t16.status, 'resolved');
+  assert.ok(!store.data.pending.some((j) => j.threadId === t16.id), 'queued reply cancelled');
+  assert.ok(!Object.values(store.data.threads).some((t) => t.customer === DANA && t.status !== 'resolved'), 'no open conversation left for Dana');
+  engine.removeThread(t16.id);
+  assert.ok(!store.data.threads[t16.id], 'thread removed');
+  assert.ok(!Object.values(store.data.msgIndex).includes(t16.id), 'message index cleaned');
+  assert.throws(() => engine.removeThread(t16.id), /no longer exists/);
+  console.log('OK 16: ending cancels queued replies; removing deletes the conversation and its index');
 
   await engine.shutdown();
   openai.close();

@@ -203,6 +203,11 @@ number of attachments.
 - Attachments are listed under their message with type, size and whether they were read. Click
   one to see exactly what the AI read from it.
 - Dates are shown in the scenario's operating year.
+- **End conversation** marks it resolved and cancels its queued replies and chases, including
+  any waiting in the Outbox. With *one conversation at a time* on, the customer can then start
+  a new one. If an employee writes in it again, it reopens and the customer answers as usual.
+- **Remove** deletes the conversation from the app, along with its queued replies and chases.
+  Mail already delivered is not touched. A later reply to it starts a new conversation.
 
 Replies are matched to threads by their `In-Reply-To`/`References` headers. If a mail client
 drops those, the reply is matched by subject and customer instead.

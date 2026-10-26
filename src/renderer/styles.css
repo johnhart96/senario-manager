@@ -182,6 +182,8 @@ button.link:hover { color: var(--err); }
 .thread-item .meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 2px; }
 .thread-view { flex: 1; overflow-y: auto; padding: 24px 28px; }
 .thread-view h1 { font-size: 20px; margin: 0 0 18px; }
+.thread-head h1 { margin-bottom: 0; }
+.thread-head { margin-bottom: 18px; }
 .msg { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 14px; }
 .msg.in { border-left: 3px solid var(--ok); }
 .msg.out { border-left: 3px solid var(--accent); }

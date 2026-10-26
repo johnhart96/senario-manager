@@ -271,6 +271,8 @@ function wire() {
       .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
   });
   handle('threads:get', (id) => store.data.threads[id] || null);
+  handle('threads:end', (id) => engine.endThread(id));
+  handle('threads:remove', (id) => engine.removeThread(id));
 
   handle('test:openai', () => ai.testConnection(store.settings.openai));
   handle('test:smtp', () => mail.verifySmtp(store.settings.mail));

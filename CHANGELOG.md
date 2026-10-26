@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-26
+
+### Added
+
+- **End conversation** and **Remove** on the Conversations tab. Ending marks it resolved and
+  cancels its queued replies and chases; removing deletes it from the app.
+
 ## [0.3.0] - 2026-10-26
 
 ### Added
@@ -92,7 +99,8 @@ First public release.
 - **Installers** for Windows (NSIS, portable), macOS (dmg, zip) and Linux (AppImage, deb, rpm)
   via electron-builder. `.senario` files open in the app when double-clicked.
 
-[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/johnhart96/senario-manager/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/johnhart96/senario-manager/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/johnhart96/senario-manager/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/johnhart96/senario-manager/releases/tag/v0.1.0

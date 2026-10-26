@@ -993,6 +993,11 @@ class Engine extends EventEmitter {
     for (const job of this.data.pending || []) this.armJob(job);
   }
 
+  // A job dropped while its AI call was running (conversation ended or removed).
+  cancelled(job) {
+    return !(this.data.pending || []).some((j) => j.id === job.id);
+  }
+
   finishJob(job) {
     clearTimeout(this.replyTimers.get(job.id));
     this.replyTimers.delete(job.id);
@@ -1040,6 +1045,7 @@ class Engine extends EventEmitter {
         allowDocuments: s.allowDocuments !== false,
         allowMeetings: s.allowMeetings !== false,
       });
+      if (this.cancelled(job)) return;
       if (!r.shouldReply || !r.body) {
         thread.status = 'resolved';
         if (r.remember) this.remember(customer.email, r.remember);
@@ -1107,7 +1113,7 @@ class Engine extends EventEmitter {
         guidance: this.settings.scenario.guidance,
         now: this.nowText(),
       });
-      if (!r.body) return;
+      if (!r.body || this.cancelled(job)) return;
 
       const to = last.to.filter((e) => staff.has(e));
       if (!to.length) return;
@@ -1248,6 +1254,45 @@ class Engine extends EventEmitter {
     this.emit('outbox-changed');
     this.emit('injects-changed');
     this.emitStatus();
+  }
+
+  // Ending a conversation marks it resolved and drops its queued replies, chases and
+  // held drafts, so the customer is free to start another. If an employee writes in
+  // it again, it reopens as usual.
+  endThread(id) {
+    const thread = this.data.threads[id];
+    if (!thread) throw new Error('That conversation no longer exists.');
+    this.dropThreadWork(id);
+    thread.status = 'resolved';
+    this.store.save();
+    this.log('info', `Conversation "${thread.subject}" ended.`);
+    this.emit('threads-changed');
+    this.emitStatus();
+  }
+
+  // Removing forgets the conversation entirely. Mail already delivered is not touched;
+  // a later reply to it starts a new conversation.
+  removeThread(id) {
+    const thread = this.data.threads[id];
+    if (!thread) throw new Error('That conversation no longer exists.');
+    this.dropThreadWork(id);
+    delete this.data.threads[id];
+    for (const [msgId, tid] of Object.entries(this.data.msgIndex)) if (tid === id) delete this.data.msgIndex[msgId];
+    this.store.save();
+    this.log('info', `Conversation "${thread.subject}" removed.`);
+    this.emit('threads-changed');
+    this.emitStatus();
+  }
+
+  dropThreadWork(id) {
+    for (const job of (this.data.pending || []).filter((j) => j.threadId === id)) {
+      clearTimeout(this.replyTimers.get(job.id));
+      this.replyTimers.delete(job.id);
+    }
+    this.data.pending = (this.data.pending || []).filter((j) => j.threadId !== id);
+    const before = (this.data.outbox || []).length;
+    this.data.outbox = (this.data.outbox || []).filter((d) => d.threadId !== id);
+    if (this.data.outbox.length !== before) this.emit('outbox-changed');
   }
 
   resetConversations() {
