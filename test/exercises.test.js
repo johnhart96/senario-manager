@@ -1,7 +1,8 @@
 'use strict';
 // Exercise and realism features: review queue, manual compose, headers, documents,
 // meeting invitations, colleagues and escalation, memory, out-of-office, background
-// mail, scripted injects, the report, templates, DKIM and .senario persistence.
+// mail, scripted injects, the report, templates, DKIM, .senario persistence and one
+// conversation at a time per customer.
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
@@ -327,6 +328,35 @@ const DANA = 'dana@bright.local';
   assert.ok(back.threads[t3.id].threadIndex || true);
   fs.rmSync(f);
   console.log('OK 14: .senario v2 round trip (outbox, injects, clock, memory, meetings, background, generated documents)');
+
+  // 15. One conversation at a time: random picks skip busy customers; explicit picks don't.
+  engine.resetConversations();
+  Object.assign(store.settings.scenario, { oneConversationAtATime: true, reviewBeforeSend: false });
+  const n15 = captured.length;
+  await engine.generateEvent();
+  await engine.generateEvent();
+  assert.ok(await until(() => captured.length === n15 + 2), 'one email from each customer');
+  assert.deepStrictEqual(new Set(captured.slice(n15).map((c) => c.from)), new Set([outlookAddr, DANA]));
+  const logged = [];
+  engine.on('log', (e) => logged.push(e.message));
+  await engine.generateEvent();
+  await wait(300);
+  assert.strictEqual(captured.length, n15 + 2, 'both customers busy: nothing sent');
+  assert.ok(logged.some((m) => /Every customer is still in a conversation/.test(m)));
+  await engine.sendNow(DANA);
+  assert.ok(await until(() => captured.length === n15 + 3), 'explicit pick still sends');
+  const carlThread = Object.values(store.data.threads).find((t) => t.customer === outlookAddr.toLowerCase());
+  carlThread.status = 'resolved';
+  await engine.generateEvent();
+  assert.ok(await until(() => captured.length === n15 + 4));
+  assert.strictEqual(captured[n15 + 3].from, outlookAddr, 'a resolved conversation frees the customer');
+  for (const t of Object.values(store.data.threads)) t.status = 'resolved';
+  store.settings.scenario.reviewBeforeSend = true;
+  await engine.generateEvent();
+  await engine.generateEvent();
+  const heldFrom = store.data.outbox.filter((d) => !d.threadId).map((d) => d.sender.toLowerCase());
+  assert.deepStrictEqual(new Set(heldFrom), new Set([outlookAddr.toLowerCase(), DANA]), 'a new email in the Outbox counts as busy');
+  console.log('OK 15: one conversation at a time (busy customers skipped, explicit picks allowed, Outbox counts)');
 
   await engine.shutdown();
   openai.close();

@@ -110,7 +110,9 @@ External parties are suppliers, contractors and advisers the company works with,
 accountant, IT contractor, solicitor or wholesaler. Unlike customers:
 
 - **You define them.** Nothing is generated.
-- **They never start a conversation.** They're never picked for scheduled emails or *Send an email now*.
+- **They never start a conversation on their own.** They're never picked for scheduled emails or
+  a random *Send an email now*. To make one write, choose them in [*Send an email now*](#activity)
+  or schedule an [inject](#injects).
 - **They reply when an employee emails them**, as a supplier whose client is the company. The
   accountant answers the VAT question with figures, asks for the bank statement they need, and
   stays within their remit.
@@ -152,7 +154,10 @@ party. Use it to steer the scenario, for example:
 Click **Start scenario**. The app then:
 
 1. Sends a new customer email after a random interval (*New customer email every … to …*),
-   repeating until stopped.
+   repeating until stopped. A customer who is still in a conversation isn't picked to start
+   another (*Customers have one conversation at a time*). A conversation ends when the customer
+   says they need nothing more, or decides not to reply. If every customer is busy, nothing is
+   sent until one is free.
 2. Answers every reply from an employee after a random delay (*Customer reply delay*).
 3. Chases unanswered emails if [follow-ups](#follow-ups) are on.
 
@@ -178,8 +183,9 @@ A live log of everything the app does:
 | `INFO` | Scheduling, decisions ("considers the thread finished"), listener status. |
 | `ERROR` | Something failed: SMTP, OpenAI, a refused connection, an unreadable attachment. |
 
-**Send an email now** triggers a new customer email immediately, from a random customer or the
-one you pick. **Clear conversation history** forgets all threads and queued replies. It doesn't
+**Send an email now** triggers a new email immediately, from a random customer or the customer
+or external party you pick. Someone you pick writes even if they're already in a conversation. A party writes about something within their services, such as an
+invoice, a renewal or documents they need from the company. **Clear conversation history** forgets all threads and queued replies. It doesn't
 touch mail already delivered.
 
 The log is kept in the `.senario` file (last 5,000 entries). Times here are always real-world

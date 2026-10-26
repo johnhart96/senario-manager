@@ -103,6 +103,16 @@ class Engine extends EventEmitter {
     return map;
   }
 
+  // Customers with an open conversation, or a new email waiting in the Outbox.
+  busyCustomers() {
+    const busy = new Set();
+    for (const t of Object.values(this.data.threads)) {
+      if (!t.background && t.status !== 'resolved' && t.customer) busy.add(lc(t.customer));
+    }
+    for (const d of this.data.outbox || []) if (!d.threadId && d.sender) busy.add(lc(d.sender));
+    return busy;
+  }
+
   // Other people at the same organisation (same email domain).
   colleaguesOf(contact) {
     const d = domainOf(contact.email);
@@ -683,19 +693,28 @@ class Engine extends EventEmitter {
   async generateEvent(customerEmail, { brief, to: injectTo, skipReview } = {}) {
     const customers = this.store.customers || [];
     const staff = this.employeeMap();
-    if (!customers.length && !brief) {
-      if (customerEmail) throw new Error('No customers defined.');
+    // Parties never start conversations on their own; they only write when chosen
+    // explicitly (Send an email now, or an inject).
+    if (!customers.length && !customerEmail) {
       return this.log('info', 'No customers defined, so no new emails are started (external parties only reply).');
     }
     if (!staff.size) throw new Error('No employees defined.');
     const contact = customerEmail && this.contactMap().get(lc(customerEmail));
-    if (customerEmail && (!contact || (contact.kind !== 'customer' && !brief))) {
-      throw new Error('Only customers start conversations; external parties only reply.');
-    }
-    if (!contact && !customers.length) throw new Error('No customers defined.');
-
-    const customer = contact || { ...pick(customers), kind: 'customer' };
+    if (customerEmail && !contact) throw new Error(`Unknown customer or party ${customerEmail}.`);
     const s = this.settings.scenario;
+
+    // A random pick skips customers who are still in a conversation (when that's on).
+    // Choosing someone explicitly (Send an email now, an inject) always goes ahead.
+    let candidates = customers;
+    if (!contact && s.oneConversationAtATime !== false) {
+      const busy = this.busyCustomers();
+      candidates = customers.filter((c) => !busy.has(lc(c.email)));
+      if (!candidates.length) {
+        return this.log('info', 'Every customer is still in a conversation, so no new email was started.');
+      }
+    }
+
+    const customer = contact || { ...pick(candidates), kind: 'customer' };
     const colleagues = this.colleaguesOf(customer);
     this.log('info', `Composing email from ${customer.name} (${customer.organisation || customer.role})…`);
     const d = await ai.writeCustomerEmail(this.settings.openai, {

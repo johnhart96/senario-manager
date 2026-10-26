@@ -41,6 +41,8 @@ function createWindow() {
     minHeight: 640,
     title: 'Senario Manager',
     backgroundColor: '#14161a',
+    // Windows and macOS take the icon from the executable; Linux (X11) needs it on the window.
+    ...(process.platform === 'linux' && { icon: path.join(__dirname, '..', 'build', 'icons', '512x512.png') }),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

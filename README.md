@@ -30,7 +30,7 @@ the company's mail server, and it plays the outside world:
 - **Attachments are read.** Send a customer a PDF quote, Word document or Excel spreadsheet
   and they'll respond to the actual prices, line items and dates.
 - **External parties** such as your accountant, IT contractor or suppliers answer when your
-  employees email them, but never start conversations themselves.
+  employees email them, but never start conversations on their own.
 - **Real-looking HTML email**, with a consistent font and quoting style per sender (plain text
   is optional).
 - **Unanswered emails get chased:** a polite nudge first, then firmer, then escalation, sometimes

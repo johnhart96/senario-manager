@@ -26,13 +26,16 @@ There are no native modules (`npmRebuild: false`), so builds are quick.
 
 ## What's in a build
 
-- Only `src/`, `package.json`, `LICENSE` and the production dependencies are packed into
-  `app.asar` (about 39 MB). Scripts, tests, docs and build files are excluded.
+- Only `src/`, `package.json`, `LICENSE`, the 512 px Linux window icon and the production
+  dependencies are packed into `app.asar` (about 39 MB). Scripts, tests, docs and other build
+  files are excluded.
 - The Windows installer shows the GPL license page.
 - `.senario` files are registered with the OS (`fileAssociations`). The app handles them via
   command-line arguments (Windows/Linux) and the `open-file` event (macOS), with a
   single-instance lock.
-- On Linux, `desktopName` / `syncDesktopName` link the window to its launcher icon.
+- On Linux, `desktopName` / `syncDesktopName` link the window to its launcher icon, and
+  `linux.icon` points at `build/icons/`, which holds the standard hicolor sizes (16–512 px).
+  Desktops don't look in a 1024×1024 folder, so a single large icon shows up as a generic one.
 
 ## Continuous integration
 
@@ -106,7 +109,7 @@ electron-builder configuration. See the
 
 | Command | Regenerates |
 |---|---|
-| `npm run icon` | `build/icon.png` (1024×1024) from `build/icon.svg`, rendered by Electron. electron-builder derives the `.ico` and `.icns` from it. |
+| `npm run icon` | `build/icon.png` (1024×1024) from `build/icon.svg`, rendered by Electron, plus the Linux sizes in `build/icons/`. electron-builder derives the `.ico` and `.icns` from `icon.png`. Add `-- --no-sandbox` if Electron's sandbox can't start (containers, Flatpak). |
 | `npm run screenshots` | `docs/images/*.png` from a fictional demo scenario. Your own data is never touched. Real IP addresses are replaced with `10.0.0.x` examples. |
 | `npm run licenses` | `docs/third-party-licenses.md` from the production dependency tree. Run it after changing dependencies. |
 

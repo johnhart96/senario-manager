@@ -1,5 +1,6 @@
 'use strict';
-// External parties: never initiate, reply as suppliers, optional chasing, persistence.
+// External parties: never initiate on their own, write when chosen, reply as suppliers,
+// optional chasing, persistence.
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
@@ -55,18 +56,26 @@ const CUSTOMER = { name: 'Carl Customer', email: 'carl@bright.local', organisati
   const engine = new Engine(store);
   await engine.openListener();
 
-  // 1. Parties only: the scenario can run, but nothing is ever initiated.
+  // 1. Parties only: the scenario can run, but nothing is ever initiated on its own.
   await engine.start();
   await engine.generateEvent();
   assert.strictEqual(captured.length, 0, 'parties never initiate');
   console.log('OK 1: with only parties defined, scheduled events send nothing');
 
-  // 2. With customers present, initiators are always customers; parties can't be forced to start one.
+  // 2. With customers present, initiators are always customers.
   store.setCustomers([CUSTOMER]);
   for (let i = 0; i < 8; i++) await engine.generateEvent();
   assert.ok(captured.every((c) => c.from === CUSTOMER.email), 'every initiated email is from a customer');
-  await assert.rejects(engine.sendNow(PARTY.email), /external parties only reply/);
-  console.log(`OK 2: ${captured.length} generated emails all from customers; "send now" as a party refused`);
+  console.log(`OK 2: ${captured.length} generated emails all from customers`);
+
+  // 2b. "Send an email now" with a party chosen: the party writes, with a supplier's reasons.
+  const generated = captured.length;
+  await engine.sendNow(PARTY.email);
+  assert.strictEqual(captured.length, generated + 1, 'party email sent');
+  assert.strictEqual(captured[generated].from, PARTY.email);
+  assert.match(prompts[prompts.length - 1], /email your client right now, within your own services/);
+  await assert.rejects(engine.sendNow('nobody@nowhere.local'), /Unknown customer or party/);
+  console.log('OK 2b: "send now" as a chosen party sends from the party with supplier framing');
 
   // 3. Employee emails the accountant → accountant replies with supplier framing.
   const before = captured.length;

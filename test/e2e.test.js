@@ -51,7 +51,7 @@ async function deliverToApp(raw, envelope, localAddress = '127.0.0.1') {
     openai: { apiKey: 'x', model: 'm' },
     mail: { ...store.settings.mail, host: '127.0.0.1', smtpPort: 2526, smtpSecurity: 'none' },
     listener: { ...store.settings.listener, bindAddress: '127.0.0.1', port: 2527, offerStartTls: false },
-    scenario: { ...store.settings.scenario, oooChance: 0, backgroundEnabled: false, replyDelayMinSec: 0, replyDelayMaxSec: 0, minIntervalMin: 600, maxIntervalMin: 600, followUpEnabled: false },
+    scenario: { ...store.settings.scenario, oooChance: 0, backgroundEnabled: false, replyDelayMinSec: 0, replyDelayMaxSec: 0, minIntervalMin: 600, maxIntervalMin: 600, followUpEnabled: false, oneConversationAtATime: false },
   });
   store.setCompany({
     name: 'Company X', domain: 'companyx.local', description: 'Sells refrigeration.',

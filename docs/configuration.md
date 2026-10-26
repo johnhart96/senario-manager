@@ -59,6 +59,7 @@ Changing these settings, or the mail server address, rebinds it immediately.
 | New customer email every … to … (min) | `20` – `90` | Random interval between new conversations *(scenario time)*. |
 | Customer reply delay … to … (sec) | `900` – `7200` | How long customers and parties take to answer (15 min – 2 h) *(scenario time)*. |
 | Working day starts / ends (hour) | `8` / `18` | Used with the option below. |
+| Customers have one conversation at a time | on | A customer with an open conversation, or a new email waiting in the Outbox, isn't picked to start another. Choosing them in *Send an email now* or an inject still works. |
 | Only send new emails and follow-ups during working hours | off | New emails and chases only Mon–Fri within those hours. Replies are still sent. Applies only at real-time pace. |
 
 ## Follow-ups

@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-26
+
+### Added
+
+- **Send an email now** can send from an external party: choose them in the list and they
+  write to the company about something within their services (an invoice, a renewal, documents
+  they need). Parties still never start conversations on their own.
+- **One conversation at a time:** a customer who is still in a conversation isn't picked to
+  start a new one, so their emails don't overlap. On by default; switch it off under
+  *Settings → Scenario behaviour*.
+
+### Fixed
+
+- The app icon now shows on Linux (Ubuntu showed a generic settings icon): packages include the
+  standard icon sizes, and the window carries its own icon.
+
 ## [0.2.0] - 2026-10-26
 
 ### Added
@@ -76,6 +92,7 @@ First public release.
 - **Installers** for Windows (NSIS, portable), macOS (dmg, zip) and Linux (AppImage, deb, rpm)
   via electron-builder. `.senario` files open in the app when double-clicked.
 
-[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/johnhart96/senario-manager/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/johnhart96/senario-manager/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/johnhart96/senario-manager/releases/tag/v0.1.0

@@ -212,7 +212,13 @@ Return JSON only.`;
   const task = brief
     ? `Write an email about the following (keep to it, in your own words and style):\n"""${brief}"""\n${to && to.length
       ? `Address it to: ${to.join(', ')}.` : 'Send it to the most appropriate staff member, based on their roles.'}`
-    : `Decide on a believable reason to email the company right now (an order, enquiry, complaint,
+    : customer.kind === 'party'
+      ? `Decide on a believable reason to email your client right now, within your own services (an
+invoice or payment reminder, a deadline or renewal coming up, information or documents you need
+from them, a price or service change, an update on work you are doing for them, a meeting
+request, etc.) and send it to the most appropriate staff member for that reason, based on their
+roles. Optionally Cc one other staff member if a real person would.`
+      : `Decide on a believable reason to email the company right now (an order, enquiry, complaint,
 quote request, invoice query, delivery problem, change request, thanks, meeting request, etc.)
 and send it to the most appropriate staff member for that reason, based on their roles.
 Optionally Cc one other staff member if a real person would.`;

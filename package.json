@@ -1,6 +1,6 @@
 {
   "name": "senario-manager",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Generates realistic AI-driven email traffic for a virtual company on a scenario mail server.",
   "author": {
     "name": "John Hart",
@@ -43,6 +43,7 @@
     },
     "files": [
       "src/**/*",
+      "build/icons/512x512.png",
       "package.json",
       "LICENSE"
     ],
@@ -121,6 +122,7 @@
         "deb",
         "rpm"
       ],
+      "icon": "build/icons",
       "category": "Network",
       "synopsis": "AI-driven email traffic for scenario networks",
       "maintainer": "John Hart <john@hart.london>",

@@ -45,6 +45,7 @@ const DEFAULT_SETTINGS = {
     workingHoursOnly: false,
     workStartHour: 8,
     workEndHour: 18,
+    oneConversationAtATime: true, // customers with an open conversation don't start another
     followUpEnabled: true,
     followUpMinHours: 4, // chase an unanswered email after this long…
     followUpMaxHours: 24, // …up to this long (scenario time)

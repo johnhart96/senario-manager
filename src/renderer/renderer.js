@@ -303,10 +303,20 @@ function fillCustomers() {
   $('#customers').innerHTML = customers.map(customerHtml).join('') ||
     '<p class="muted">No customers yet. Save your company, then generate some.</p>';
   $('#custCount').textContent = customers.length;
-  $('#sendFrom').innerHTML = '<option value="">Random customer</option>' +
-    customers.map((c) => `<option value="${esc(c.email)}">${esc(c.name)} (${esc(c.organisation)})</option>`).join('');
+  fillSendFrom();
   if (settings) renderRouting();
   if (typeof fillComposeOptions === 'function') fillComposeOptions();
+}
+
+// "Send an email now": a random customer, a chosen customer, or a chosen party.
+function fillSendFrom() {
+  const chosen = $('#sendFrom').value;
+  const opts = (list) => list.map((c) => `<option value="${esc(c.email)}">${esc(c.name)} (${esc(c.organisation || c.role)})</option>`).join('');
+  $('#sendFrom').innerHTML = '<option value="">Random customer</option>' +
+    (customers.length ? `<optgroup label="Customers">${opts(customers)}</optgroup>` : '') +
+    (parties.length ? `<optgroup label="External parties">${opts(parties)}</optgroup>` : '');
+  $('#sendFrom').value = chosen;
+  if ($('#sendFrom').value !== chosen) $('#sendFrom').value = '';
 }
 
 const readCustomers = () => readCards($('#customers'));
@@ -362,6 +372,7 @@ function fillParties() {
   $('#parties').innerHTML = parties.map(partyHtml).join('') ||
     '<p class="muted">No external parties yet. Add the suppliers and contractors your employees deal with.</p>';
   $('#partyCount').textContent = parties.length;
+  fillSendFrom();
   if (settings) renderRouting();
 }
 

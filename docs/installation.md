@@ -68,6 +68,11 @@ On Ubuntu 24.04 and later, AppArmor may stop the AppImage's sandbox from startin
 immediately, run it with `--no-sandbox`, or use the `.deb` instead, which sets the sandbox up
 correctly.
 
+An AppImage doesn't add itself to the applications menu. Under Wayland (the Ubuntu default) the
+dock then shows a generic icon, because it finds the icon through the menu entry. To get a menu
+entry and the proper icon, integrate the AppImage with a tool such as Gear Lever or
+AppImageLauncher, or use the `.deb`.
+
 ### Allow port 25 (Linux only)
 
 Linux only lets root use ports below 1024. Rather than running the app as root, lower that
