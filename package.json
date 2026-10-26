@@ -1,6 +1,6 @@
 {
   "name": "senario-manager",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Generates realistic AI-driven email traffic for a virtual company on a scenario mail server.",
   "author": {
     "name": "John Hart",

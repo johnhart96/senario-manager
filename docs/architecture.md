@@ -16,6 +16,12 @@ src/
 ├── renderer/
 │   ├── index.html          All tabs
 │   ├── renderer.js         UI logic (forms, conversations, pace slider, file box)
+│   ├── injects.js          Injects tab: the exercise timeline and its clock
+│   ├── outbox.js           Outbox tab: drafts held for review, writing an email yourself
+│   ├── report.js           Report tab: per-employee performance and conversation outcomes
+│   ├── templates.js        "New" button: start from a ready-made template or blank
+│   ├── updates.js          Settings → Updates card and the update-ready banner
+│   ├── boot.js             Start-up, loaded after every other UI script
 │   └── styles.css
 └── core/                   No Electron UI code: everything here is testable in plain Node
     ├── engine.js           The scenario engine: scheduling, replies, follow-ups, inbound mail

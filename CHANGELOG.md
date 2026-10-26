@@ -6,8 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-26
+
 ### Added
 
+- **HTML email** (now the default): messages are sent as HTML with a plain-text alternative,
+  like real mail clients. Each customer and party has a consistent, era-appropriate font and
+  quoting style (Outlook *From/Sent/To/Subject* block or *"On … wrote:"*), and lists are
+  formatted. *Settings → Scenario behaviour → Email format* switches back to plain text.
 - **Scripted injects:** a timeline of planned emails (AI-written from a brief or exact text) and
   guidance changes, fired on an exercise clock that runs in scenario time.
 - **Outbox:** optionally review, edit, send or discard AI-written emails before they go out, and
@@ -41,11 +47,6 @@ All notable changes to this project are documented here. The format follows
 - Inline styles blocked by the content security policy (message dates now align correctly).
 - Quitting no longer waits up to 30 seconds for idle SMTP connections to close.
 
-- **HTML email** (now the default): messages are sent as HTML with a plain-text alternative,
-  like real mail clients. Each customer and party has a consistent, era-appropriate font and
-  quoting style (Outlook *From/Sent/To/Subject* block or *"On … wrote:"*), and lists are
-  formatted. *Settings → Scenario behaviour → Email format* switches back to plain text.
-
 ## [0.1.0] - 2026-10-06
 
 First public release.
@@ -75,5 +76,6 @@ First public release.
 - **Installers** for Windows (NSIS, portable), macOS (dmg, zip) and Linux (AppImage, deb, rpm)
   via electron-builder. `.senario` files open in the app when double-clicked.
 
-[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/johnhart96/senario-manager/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/johnhart96/senario-manager/releases/tag/v0.1.0
