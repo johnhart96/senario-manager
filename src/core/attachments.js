@@ -6,6 +6,8 @@ const path = require('path');
 const { Worker } = require('worker_threads');
 
 const MAX_BYTES = 25 * 1024 * 1024; // matches the listener's message size limit
+const MAX_FORM_BYTES = 1024 * 1024; // forms are kept with the message so they can be filled in
+const FORM_EXT = /\.(pdf|docx|docm|xlsx|xlsm|xls)$/i;
 const MAX_TEXT = 20000; // characters kept per attachment
 const TIMEOUT_MS = 30000;
 
@@ -47,10 +49,10 @@ function kindOf(filename, contentType) {
   return hit ? hit[1] : null;
 }
 
-function runWorker(kind, data) {
+function runWorker(kind, data, extra) {
   return new Promise((resolve, reject) => {
     const worker = new Worker(path.join(__dirname, 'extract-worker.js'), {
-      workerData: { kind, data },
+      workerData: { kind, data, extra },
       resourceLimits: { maxOldGenerationSizeMb: 512 },
     });
     const timer = setTimeout(() => {
@@ -119,12 +121,28 @@ async function extractAttachments(attachments, { describeImage } = {}) {
       }
       Object.assign(item, clip(text));
       if (!item.text) item.status = 'empty'; // e.g. a scanned PDF with no text layer
+      await findForm(item, a.content);
     } catch (e) {
       item.status = 'error';
       item.error = e.message;
     }
   }
   return out;
+}
+
+// A form with blanks to fill in: keep the original and list its blanks.
+async function findForm(item, content) {
+  if (!['pdf', 'docx', 'spreadsheet'].includes(item.kind) || !FORM_EXT.test(item.filename) || item.size > MAX_FORM_BYTES) return;
+  try {
+    const fields = await runWorker(`form-detect:${item.kind}`, new Uint8Array(content));
+    if (fields.length) item.form = { fields, data: Buffer.from(content).toString('base64') };
+  } catch { /* not a form we can fill: it's still read as a document */ }
+}
+
+// Fills a form kept by findForm. answers: { [field id]: value } -> Buffer
+async function fillForm(attachment, answers) {
+  const out = await runWorker(`form-fill:${attachment.kind}`, new Uint8Array(Buffer.from(attachment.form.data, 'base64')), answers);
+  return Buffer.from(out);
 }
 
 const fmtSize = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
@@ -136,6 +154,8 @@ const STATUS_NOTE = {
   error: 'could not be read',
 };
 
+const formLine = (f) => `${f.id}: ${f.label}${f.type === 'check' ? ' (tick box: yes or no)' : f.type === 'choice' ? ` (one of: ${f.options.join(' / ')})` : ''}`;
+
 // Text for the AI prompt. `full` includes the extracted content, otherwise a short excerpt.
 function attachmentsForPrompt(list, full) {
   if (!list || !list.length) return '';
@@ -144,9 +164,10 @@ function attachmentsForPrompt(list, full) {
       const head = `[Attachment: ${a.filename} (${fmtSize(a.size)})]`;
       if (a.status !== 'ok') return `${head} — ${STATUS_NOTE[a.status] || a.status}`;
       const body = full ? a.text : a.text.slice(0, 1500) + (a.text.length > 1500 ? '\n…' : '');
-      return `${head}${a.truncated && full ? ' (long document, beginning shown)' : ''}\n${body}\n[End of ${a.filename}]`;
+      const form = full && a.form && !a.sent ? `\n[Blanks you can fill in on ${a.filename}, by id]\n${a.form.fields.map(formLine).join('\n')}` : '';
+      return `${head}${a.truncated && full ? ' (long document, beginning shown)' : ''}\n${body}${form}\n[End of ${a.filename}]`;
     })
     .join('\n\n');
 }
 
-module.exports = { extractAttachments, attachmentsForPrompt, kindOf, fmtSize };
+module.exports = { extractAttachments, attachmentsForPrompt, fillForm, kindOf, fmtSize };

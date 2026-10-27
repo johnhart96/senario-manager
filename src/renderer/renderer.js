@@ -261,11 +261,16 @@ const CUSTOMER_FIELDS = [
   ['writingStyle', 'Writing style', 'area'],
   ['signature', 'Signature', 'area'],
   ['memory', 'Remembers about the company (one note per line, added to automatically)', 'lines'],
+  ['followUps', 'Chases emails that haven\'t been answered (when follow-ups are on in Settings)', 'check'],
 ];
 
 // Expandable card for an external person (customer or party). fields: [key, label, type?, placeholder?]
 function personCard(fields, c, newLabel) {
   const body = fields.map(([k, label, type, ph]) => {
+    // Checkboxes default to on: a missing value means "yes".
+    if (type === 'check') {
+      return `<div class="full"><label class="check"><input type="checkbox" data-f="${k}" data-type="check"${c[k] === false ? '' : ' checked'} /> ${label}</label></div>`;
+    }
     const v = esc(type === 'lines' ? (c[k] || []).join('\n') : c[k] || '');
     const p = ph ? ` placeholder="${esc(ph)}"` : '';
     const input = type === 'area' || type === 'lines'
@@ -291,7 +296,8 @@ function readCards(container) {
     .map((el) => {
       const c = {};
       $$('[data-f]', el).forEach((i) => {
-        c[i.dataset.f] = i.dataset.type === 'lines' ? i.value.split('\n').map((l) => l.trim()).filter(Boolean) : i.value.trim();
+        c[i.dataset.f] = i.dataset.type === 'check' ? i.checked
+          : i.dataset.type === 'lines' ? i.value.split('\n').map((l) => l.trim()).filter(Boolean) : i.value.trim();
       });
       c.email = (c.email || '').toLowerCase();
       return c;
@@ -637,10 +643,10 @@ function attachmentsHtml(list, threadId, messageId) {
   return `<div class="atts">${list
     .map((a, i) => {
       const ext = (a.filename.split('.').pop() || '').slice(0, 4).toUpperCase();
-      const save = a.sent && a.spec
+      const save = a.sent && (a.spec || a.filled)
         ? ` · <button class="link save-att" data-thread="${esc(threadId)}" data-msg="${esc(messageId)}" data-idx="${i}">Save</button>` : '';
       const head = `<span class="att-ext">${esc(ext)}</span><span class="att-name">${esc(a.filename)}</span>
-        <span class="att-meta">${fmtSize(a.size)} · <span class="att-status ${esc(a.status)}" title="${esc(a.error || '')}">${esc(a.sent ? 'sent' : ATT_STATUS[a.status] || a.status)}</span>${save}</span>`;
+        <span class="att-meta">${fmtSize(a.size)} · <span class="att-status ${esc(a.status)}" title="${esc(a.error || '')}">${esc(a.filled ? 'filled in' : a.sent ? 'sent' : a.form ? `${ATT_STATUS[a.status] || a.status}, form with ${a.form.fields.length} blanks` : ATT_STATUS[a.status] || a.status)}</span>${save}</span>`;
       return a.status === 'ok' && a.text
         ? `<details class="att"><summary>${head}</summary><pre class="att-text">${esc(a.text)}${a.truncated ? '\n\n[… truncated]' : ''}</pre></details>`
         : `<div class="att">${head}</div>`;

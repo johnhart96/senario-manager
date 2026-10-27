@@ -60,13 +60,14 @@ Changing these settings, or the mail server address, rebinds it immediately.
 | Customer reply delay … to … (sec) | `900` – `7200` | How long customers and parties take to answer (15 min – 2 h) *(scenario time)*. |
 | Working day starts / ends (hour) | `8` / `18` | Used with the option below. |
 | Customers have one conversation at a time | on | A customer with an open conversation, or a new email waiting in the Outbox, isn't picked to start another. Choosing them in *Send an email now* or an inject still works. |
+| Cooldown after a resolved conversation (hours) | `24` | After a customer's conversation is resolved, they aren't picked to start another until this long has passed *(scenario time)*. `0` turns it off. Choosing them in *Send an email now* or an inject still works. |
 | Only send new emails and follow-ups during working hours | off | New emails and chases only Mon–Fri within those hours. Replies are still sent. Applies only at real-time pace. |
 
 ## Follow-ups
 
 | Setting | Default | Description |
 |---|---|---|
-| Customers chase emails that haven't been answered | on | Enables chasing. |
+| Customers chase emails that haven't been answered | on | Enables chasing. Turning it off also stops chases already queued. Each customer can also be switched off individually on the Customers tab. |
 | Chase after … to … (hours) | `4` – `24` | Wait before the first chase *(scenario time)*. Each later chase waits 50% longer. |
 | Max follow-ups per email | `2` | Chases per unanswered email. |
 | External parties also chase … | off | Lets parties chase questions they asked that went unanswered. |

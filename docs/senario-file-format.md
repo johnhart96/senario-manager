@@ -65,7 +65,7 @@ Ordered by `position` (the order shown in the app).
 | table | columns |
 |---|---|
 | `employees` | `name`, `email`, `role`, `responsibilities` |
-| `customers` | `name`, `email`, `organisation`, `role`, `relationship`, `personality`, `writing_style`, `signature`, `memory` (JSON array of notes) |
+| `customers` | `name`, `email`, `organisation`, `role`, `relationship`, `personality`, `writing_style`, `signature`, `memory` (JSON array of notes), `follow_ups` (`1`/`0`; missing in files from before 0.5.0, meaning `1`) |
 | `parties` | `name`, `email`, `organisation`, `role`, `services`, `personality`, `writing_style`, `signature`, `memory` |
 
 ### `threads`
@@ -79,6 +79,7 @@ Ordered by `position` (the order shown in the app).
 | `status` | `open` or `resolved`. |
 | `background` | `1` for background mail (newsletters and notifications). |
 | `thread_index` | Outlook `Thread-Index` base for the conversation, if any. |
+| `resolved_at` | ISO 8601 time the conversation was last resolved, for the cooldown. Added in 0.5.0. |
 
 ### `messages`
 
@@ -95,7 +96,8 @@ Ordered by `position` (the order shown in the app).
 
 ### `attachments`
 
-Text extracted from attachments on received messages. The original files aren't stored.
+Text extracted from attachments on received messages. The original files aren't stored, except
+forms (`form`), which are kept so they can be filled in.
 
 | column | notes |
 |---|---|
@@ -108,6 +110,8 @@ Text extracted from attachments on received messages. The original files aren't 
 | `error` | Error message when `status = 'error'`. |
 | `spec` | For documents the app generated and sent: the JSON description they were rendered from (used by **Save**). |
 | `sent` | `1` for documents the app sent, `0` for attachments received. |
+| `form` | For a form the company sent (PDF, `.docx`, `.xlsx`/`.xls` up to 1 MB): JSON `{ fields: [{ id, label, type, options? }], data }`, `data` being the original file in base64. Added in 0.5.0. |
+| `filled` | For a form sent back filled in: JSON `{ messageId, idx, answers }`, pointing at the original form and the answers given (used by **Save**). Added in 0.5.0. |
 
 ### `pending_jobs`
 

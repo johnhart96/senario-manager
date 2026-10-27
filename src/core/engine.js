@@ -4,7 +4,7 @@ const { EventEmitter } = require('events');
 const crypto = require('crypto');
 const mail = require('./mail');
 const ai = require('./ai');
-const { extractAttachments } = require('./attachments');
+const { extractAttachments, fillForm } = require('./attachments');
 const clock = require('./clock');
 const { compose, mailHeaders, styleFor, rfc2822 } = require('./compose');
 const documents = require('./documents');
@@ -101,6 +101,24 @@ class Engine extends EventEmitter {
     for (const p of this.store.parties || []) if (p.email) map.set(lc(p.email), { ...p, kind: 'party' });
     for (const c of this.store.customers || []) if (c.email) map.set(lc(c.email), { ...c, kind: 'customer' });
     return map;
+  }
+
+  // Records when a conversation was resolved, for the cooldown below.
+  setStatus(thread, status) {
+    if (status === 'resolved' && thread.status !== 'resolved') thread.resolvedAt = new Date().toISOString();
+    thread.status = status;
+  }
+
+  // Customers whose last conversation was resolved too recently to start another
+  // (Settings → Scenario behaviour; scenario time, so the pace speeds it up).
+  coolingDown() {
+    const wait = (Number(this.settings.scenario.cooldownHours) || 0) * 3600000 / this.pace;
+    const out = new Set();
+    if (wait <= 0) return out;
+    for (const t of Object.values(this.data.threads)) {
+      if (!t.background && t.customer && t.status === 'resolved' && t.resolvedAt && Date.now() - Date.parse(t.resolvedAt) < wait) out.add(lc(t.customer));
+    }
+    return out;
   }
 
   // Customers with an open conversation, or a new email waiting in the Outbox.
@@ -592,10 +610,13 @@ class Engine extends EventEmitter {
       background: draft.kind === 'background',
       envelopeFrom: draft.envelopeFrom,
     };
+    const org = { name: customer.organisation || customer.name, email: customer.email, person: customer.name, year: this.year, now: this.scenarioNow() };
     if (draft.document) {
-      extra.attachments = [await documents.generate(draft.document, {
-        name: customer.organisation || customer.name, email: customer.email, person: customer.name, year: this.year, now: this.scenarioNow(),
-      })];
+      extra.attachments = [await documents.generate(draft.document, org)];
+    }
+    for (const f of draft.forms || []) {
+      const file = await this.filledForm(f, thread0, org).catch((e) => this.log('error', `Could not fill in the form: ${e.message}`));
+      if (file) (extra.attachments = extra.attachments || []).push(file);
     }
     if (draft.meeting) {
       const m = calendar.normaliseMeeting(draft.meeting, this.scenarioNow());
@@ -626,10 +647,31 @@ class Engine extends EventEmitter {
       extra,
     });
     if (draft.remember) this.remember(customer.email, draft.remember);
-    if (draft.kind !== 'background' && draft.kind !== 'ooo') thread.status = draft.resolves ? 'resolved' : 'open';
+    if (draft.kind !== 'background' && draft.kind !== 'ooo') this.setStatus(thread, draft.resolves ? 'resolved' : 'open');
     if (draft.followUp) this.scheduleFollowUp(customer, thread.id, record.messageId, (draft.followUpAttempt || 0) + 1);
     this.store.save();
     return { thread, record };
+  }
+
+  // A form the company sent, filled in with the customer's answers. If the file can't be
+  // filled, a completed copy is sent as a new document in the same format instead.
+  async filledForm({ messageId, idx, answers }, thread, org) {
+    const msg = thread && thread.messages.find((m) => m.messageId === messageId);
+    const src = msg && msg.attachments && msg.attachments[idx];
+    if (!src || !src.form) throw new Error('the original form is no longer available');
+    const labels = new Map(src.form.fields.map((f) => [f.id, f.label]));
+    const text = Object.entries(answers).map(([id, v]) => `${labels.get(id) || id}: ${v}`).join('\n');
+    try {
+      const content = await fillForm(src, answers);
+      return { filename: src.filename, content, contentType: src.contentType || 'application/octet-stream',
+        record: { filename: src.filename, contentType: src.contentType, size: content.length, kind: src.kind, status: 'ok', text, truncated: false,
+          sent: true, filled: { messageId, idx, answers } } };
+    } catch (e) {
+      this.log('error', `Could not fill in ${src.filename} (${e.message}); sending a completed copy instead.`);
+      const format = src.kind === 'docx' ? 'word' : src.kind === 'spreadsheet' ? 'excel' : 'pdf';
+      return documents.generate({ format, title: src.filename.replace(/\.[^.]+$/, '') + ' (completed)',
+        fields: Object.fromEntries(Object.entries(answers).map(([id, v]) => [labels.get(id) || id, v])) }, org);
+    }
   }
 
   // Outbox (review queue): send with optional edits, or discard.
@@ -640,6 +682,7 @@ class Engine extends EventEmitter {
     for (const k of ['subject', 'body']) if (typeof edits[k] === 'string') draft[k] = edits[k];
     for (const k of ['to', 'cc']) if (Array.isArray(edits[k])) draft[k] = edits[k].map(lc).filter(Boolean);
     if (edits.dropDocument) delete draft.document;
+    if (edits.dropForms) delete draft.forms;
     if (edits.dropMeeting) delete draft.meeting;
     this.checkRecipients(draft.to, draft.cc || []);
     try {
@@ -703,14 +746,18 @@ class Engine extends EventEmitter {
     if (customerEmail && !contact) throw new Error(`Unknown customer or party ${customerEmail}.`);
     const s = this.settings.scenario;
 
-    // A random pick skips customers who are still in a conversation (when that's on).
-    // Choosing someone explicitly (Send an email now, an inject) always goes ahead.
+    // A random pick skips customers who are still in a conversation (when that's on) or
+    // cooling down after one. Choosing someone explicitly (Send an email now, an inject)
+    // always goes ahead.
     let candidates = customers;
-    if (!contact && s.oneConversationAtATime !== false) {
-      const busy = this.busyCustomers();
-      candidates = customers.filter((c) => !busy.has(lc(c.email)));
+    if (!contact) {
+      const busy = s.oneConversationAtATime !== false ? this.busyCustomers() : new Set();
+      const cooling = this.coolingDown();
+      candidates = customers.filter((c) => !busy.has(lc(c.email)) && !cooling.has(lc(c.email)));
       if (!candidates.length) {
-        return this.log('info', 'Every customer is still in a conversation, so no new email was started.');
+        return this.log('info', cooling.size
+          ? 'Every customer is still in a conversation or cooling down after one, so no new email was started.'
+          : 'Every customer is still in a conversation, so no new email was started.');
       }
     }
 
@@ -890,7 +937,7 @@ class Engine extends EventEmitter {
     // Accepting or tentatively accepting an invitation needs no answer.
     if (meetingResponse && cal.partstat !== 'DECLINED') {
       this.log('info', `${from.name || from.email}: ${meetingResponse}`);
-      thread.status = 'resolved';
+      this.setStatus(thread, 'resolved');
       this.store.save();
       return;
     }
@@ -962,10 +1009,16 @@ class Engine extends EventEmitter {
   }
 
   // Chase an unanswered customer email after a random wait.
+  // Whether this customer or party chases at all (Settings → Follow-ups, and per customer).
+  chases(contact) {
+    const s = this.settings.scenario;
+    if (!s.followUpEnabled || contact.followUps === false) return false;
+    return contact.kind !== 'party' || !!s.partyFollowUps;
+  }
+
   scheduleFollowUp(customer, threadId, afterId, attempt = 1) {
     const s = this.settings.scenario;
-    if (!s.followUpEnabled || attempt > (Number(s.followUpMax) || 0)) return;
-    if (customer.kind === 'party' && !s.partyFollowUps) return;
+    if (!this.chases(customer) || attempt > (Number(s.followUpMax) || 0)) return;
     // Each chase waits a little longer than the last.
     const hours = randBetween(Number(s.followUpMinHours) || 1, Number(s.followUpMaxHours) || 1) * (1 + 0.5 * (attempt - 1));
     const job = this.addJob({ type: 'followup', customer: lc(customer.email), threadId, afterId, attempt }, hours * 3600000);
@@ -1047,7 +1100,7 @@ class Engine extends EventEmitter {
       });
       if (this.cancelled(job)) return;
       if (!r.shouldReply || !r.body) {
-        thread.status = 'resolved';
+        this.setStatus(thread, 'resolved');
         if (r.remember) this.remember(customer.email, r.remember);
         this.store.save();
         this.log('info', `${customer.name} considers "${thread.subject}" finished; no reply.`);
@@ -1078,6 +1131,7 @@ class Engine extends EventEmitter {
         remember: r.remember,
         document: s.allowDocuments !== false ? r.document : null,
         meeting: s.allowMeetings !== false ? r.meeting : null,
+        forms: formAnswers(r.fillForms, incoming),
       });
     } catch (e) {
       this.log('error', `Reply failed: ${e.message}`);
@@ -1097,6 +1151,8 @@ class Engine extends EventEmitter {
       const thread = this.data.threads[job.threadId];
       const idx = thread ? thread.messages.findIndex((m) => m.messageId === job.afterId) : -1;
       if (!customer || idx < 0) return;
+      // Chasing switched off since this was queued.
+      if (!this.chases(customer)) return;
       // Answered (or already chased) since: nothing to do.
       if (idx !== thread.messages.length - 1) return;
       const last = thread.messages[idx];
@@ -1263,7 +1319,7 @@ class Engine extends EventEmitter {
     const thread = this.data.threads[id];
     if (!thread) throw new Error('That conversation no longer exists.');
     this.dropThreadWork(id);
-    thread.status = 'resolved';
+    this.setStatus(thread, 'resolved');
     this.store.save();
     this.log('info', `Conversation "${thread.subject}" ended.`);
     this.emit('threads-changed');
@@ -1303,6 +1359,24 @@ class Engine extends EventEmitter {
     this.emit('outbox-changed');
     this.emitStatus();
   }
+}
+
+// The AI's form answers, tied to the forms on the message being replied to.
+// fillForms: [{ file, answers: { [field id]: value } }] -> [{ messageId, idx, answers }]
+function formAnswers(fillForms, incoming) {
+  const forms = (incoming.attachments || []).map((a, idx) => ({ a, idx })).filter((x) => x.a.form);
+  const out = [];
+  for (const f of Array.isArray(fillForms) ? fillForms : []) {
+    if (!f || typeof f.answers !== 'object' || !f.answers) continue;
+    const match = forms.find((x) => lc(x.a.filename) === lc(f.file)) || (forms.length === 1 ? forms[0] : null);
+    if (!match || out.some((o) => o.idx === match.idx)) continue;
+    const ids = new Set(match.a.form.fields.map((x) => x.id));
+    const answers = Object.fromEntries(Object.entries(f.answers)
+      .filter(([id, v]) => ids.has(id) && v !== null && v !== undefined && String(v).trim() !== '')
+      .map(([id, v]) => [id, String(v).slice(0, 500)]));
+    if (Object.keys(answers).length) out.push({ messageId: incoming.messageId, idx: match.idx, answers });
+  }
+  return out.length ? out : undefined;
 }
 
 module.exports = { Engine, stripQuoted, baseSubject };

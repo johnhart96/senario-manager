@@ -103,9 +103,23 @@ const roleOf = (c) => (c.kind === 'party'
   : 'external customer/contact of a company');
 
 // Optional extras the model may add to any email it writes.
-function extrasSpec({ allowDocuments, allowMeetings, colleagues }) {
+// forms: the fillable forms on the message being replied to (replies only).
+function extrasSpec({ allowDocuments, allowMeetings, colleagues, forms }) {
   const fields = [];
   const rules = [];
+  if (forms && forms.length) {
+    fields.push('"fillForms": [] or [{"file": "exact filename of the form", "answers": {"field id": "value"}}]');
+    rules.push(`The company sent a form with blanks to fill in (${forms.map((a) => a.filename).join(', ')}). If they asked
+you to complete it, or a real person would, fill it in as yourself: give every answer you
+reasonably can, with realistic details consistent with who you are and anything said earlier
+(invent plausible ones where needed, never real-world data). Leave "office use only" fields, and
+anything you'd genuinely not know, blank. Tick boxes take "yes" or "no"; choices take one of the
+listed options exactly. The filled-in form is sent back as an attachment, so mention it naturally
+in your email. Don't also attach a separate document for it.`);
+  } else if (forms && allowDocuments) {
+    rules.push(`If the company sent you a form to complete that has no fillable blanks listed (e.g. a scanned
+or flat document), attach a completed version as a document instead, with your answers.`);
+  }
   if (colleagues && colleagues.length) {
     fields.push('"ccColleagues": ["colleague email", ...]');
     rules.push('Copy in a colleague from your organisation only when a real person would.');
@@ -243,7 +257,7 @@ ${x.fields}}`;
 
 // The customer's response to a reply from the company.
 async function writeCustomerReply(openai, { company, customer, colleagues = [], thread, incoming, guidance, now, allowDocuments, allowMeetings }) {
-  const x = extrasSpec({ allowDocuments, allowMeetings, colleagues });
+  const x = extrasSpec({ allowDocuments, allowMeetings, colleagues, forms: (incoming.attachments || []).filter((a) => a.form) });
   const system = `You write email replies as a specific ${roleOf(customer)}. ${REALISM}
 Stay consistent with everything already said in the thread and react to what the company
 actually wrote: answer their questions, push back if they were unhelpful, accept good solutions.

@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-27
+
+### Added
+
+- **Forms come back filled in:** send a customer or party a PDF, Word or Excel form and they
+  complete it and return it with their reply, under its original filename. Fills PDF form
+  fields, Word content controls, `Label: ____` lines and table cells, and Excel cells next to a
+  label. Forms without blanks come back as a completed copy.
+- **Cooldown after a resolved conversation:** a customer whose conversation has just been
+  resolved isn't picked to start another until a set time has passed (24 hours of scenario time
+  by default; *Settings → Scenario behaviour*, 0 turns it off).
+- **Per-customer follow-ups:** untick *Chases emails that haven't been answered* on a customer
+  to stop just them chasing. Saved in `.senario` files (older files and apps are unaffected).
+
+### Fixed
+
+- Switching follow-ups off didn't stop chases that were already queued: they still went out.
+
 ## [0.4.0] - 2026-10-26
 
 ### Added
@@ -99,7 +117,8 @@ First public release.
 - **Installers** for Windows (NSIS, portable), macOS (dmg, zip) and Linux (AppImage, deb, rpm)
   via electron-builder. `.senario` files open in the app when double-clicked.
 
-[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/johnhart96/senario-manager/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/johnhart96/senario-manager/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/johnhart96/senario-manager/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/johnhart96/senario-manager/compare/v0.1.0...v0.2.0

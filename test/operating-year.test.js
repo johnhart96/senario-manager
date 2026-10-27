@@ -45,7 +45,7 @@ const sink = new SMTPServer({ authOptional: true, disabledCommands: ['STARTTLS']
     openai: { apiKey: 'x', model: 'm', baseURL: 'http://127.0.0.1:2598/v1' },
     mail: { ...store.settings.mail, host: '127.0.0.1', smtpPort: 2596, smtpSecurity: 'none' },
     listener: { ...store.settings.listener, bindAddress: '127.0.0.1', port: 2597, offerStartTls: false },
-    scenario: { ...store.settings.scenario, oooChance: 0, backgroundEnabled: false, replyDelayMinSec: 0, replyDelayMaxSec: 0, followUpEnabled: false, minIntervalMin: 600, maxIntervalMin: 600, oneConversationAtATime: false } });
+    scenario: { ...store.settings.scenario, oooChance: 0, backgroundEnabled: false, replyDelayMinSec: 0, replyDelayMaxSec: 0, followUpEnabled: false, minIntervalMin: 600, maxIntervalMin: 600, oneConversationAtATime: false, cooldownHours: 0 } });
   store.setCompany({ name: 'Company X', domain: 'companyx.local', description: 'Sells lamps.', operatingYear: 2005, datedEmails: true,
     employees: [{ name: 'Ann Accounts', email: 'accounts@companyx.local', role: 'Accounts', responsibilities: 'quotes' }] });
   store.setCustomers([{ name: 'Carl Customer', email: 'carl@bright.local', organisation: 'Bright', role: 'Buyer' }]);

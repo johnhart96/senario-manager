@@ -117,9 +117,20 @@ async function email(buf) {
 
 const HANDLERS = { pdf, docx, doc, spreadsheet, pptx, opendocument: openDocument, rtf, html, email, text: decode };
 
+// Forms (see forms.js): kind is "form-detect:<format>" or "form-fill:<format>".
+async function form(kind, data, extra) {
+  const forms = require('./forms');
+  const [op, format] = kind.split(':');
+  return op === 'form-detect' ? forms.detect(format, data) : new Uint8Array(await forms.fill(format, data, extra));
+}
+
 (async () => {
-  const { kind, data } = workerData;
+  const { kind, data, extra } = workerData;
   try {
+    if (kind.startsWith('form-')) {
+      parentPort.postMessage({ ok: true, text: await form(kind, data, extra) });
+      return;
+    }
     const text = await HANDLERS[kind](data);
     parentPort.postMessage({ ok: true, text: String(text || '') });
   } catch (e) {

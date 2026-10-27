@@ -29,12 +29,16 @@ the company's mail server, and it plays the outside world:
   thread, consistent with everything said so far, until the conversation naturally ends.
 - **Attachments are read.** Send a customer a PDF quote, Word document or Excel spreadsheet
   and they'll respond to the actual prices, line items and dates.
+- **Forms come back filled in.** Send an account application or credit form (PDF, Word or
+  Excel) and the customer completes it and returns it with their reply.
 - **External parties** such as your accountant, IT contractor or suppliers answer when your
   employees email them, but never start conversations on their own.
 - **Real-looking HTML email**, with a consistent font and quoting style per sender (plain text
   is optional).
 - **Unanswered emails get chased:** a polite nudge first, then firmer, then escalation, sometimes
-  by the customer's own manager.
+  by the customer's own manager. Chasing can be switched off for everyone or per customer.
+- **One conversation at a time:** a customer doesn't start a new email while one is still open,
+  and waits a while after it's resolved. End or remove conversations yourself at any time.
 - **Customers send real documents** (purchase orders, remittances, specs as PDF, Word or Excel in
   the format of the year) and **meeting invitations**, remember earlier dealings, copy in
   colleagues, and are sometimes out of the office.

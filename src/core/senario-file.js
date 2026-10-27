@@ -21,7 +21,8 @@ CREATE TABLE employees (
 );
 CREATE TABLE customers (
   position INTEGER PRIMARY KEY, name TEXT, email TEXT NOT NULL, organisation TEXT, role TEXT,
-  relationship TEXT, personality TEXT, writing_style TEXT, signature TEXT, memory TEXT -- JSON array
+  relationship TEXT, personality TEXT, writing_style TEXT, signature TEXT, memory TEXT, -- JSON array
+  follow_ups INTEGER NOT NULL DEFAULT 1
 );
 CREATE TABLE parties (
   position INTEGER PRIMARY KEY, name TEXT, email TEXT NOT NULL, organisation TEXT, role TEXT,
@@ -29,7 +30,8 @@ CREATE TABLE parties (
 );
 CREATE TABLE threads (
   id TEXT PRIMARY KEY, subject TEXT, customer TEXT, updated_at TEXT,
-  status TEXT, background INTEGER NOT NULL DEFAULT 0, thread_index TEXT
+  status TEXT, background INTEGER NOT NULL DEFAULT 0, thread_index TEXT,
+  resolved_at TEXT -- added in 0.5.0
 );
 CREATE TABLE messages (
   message_id TEXT NOT NULL, thread_id TEXT NOT NULL REFERENCES threads(id), position INTEGER NOT NULL,
@@ -48,6 +50,8 @@ CREATE TABLE attachments (
   filename TEXT, content_type TEXT, size INTEGER, kind TEXT, status TEXT, text TEXT, truncated INTEGER, error TEXT,
   spec TEXT, -- JSON document spec for attachments the app generated (sent = 1)
   sent INTEGER NOT NULL DEFAULT 0,
+  form TEXT,   -- JSON: a form the company sent, { fields, data (base64 original) }
+  filled TEXT, -- JSON: a form sent back filled in, { messageId, idx, answers }
   PRIMARY KEY (thread_id, position, idx)
 );
 CREATE TABLE outbox (position INTEGER PRIMARY KEY, draft TEXT NOT NULL);   -- JSON drafts awaiting review
@@ -94,10 +98,10 @@ function saveSenario(file, data, { includeSecrets = false, appVersion = '' } = {
     (c.employees || []).forEach((e, i) => emp.run(i, e.name || '', e.email, e.role || '', e.responsibilities || ''));
 
     const mem = (x) => JSON.stringify(Array.isArray(x.memory) ? x.memory : []);
-    const cust = db.prepare('INSERT INTO customers VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const cust = db.prepare('INSERT INTO customers VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     (data.customers || []).forEach((x, i) =>
       cust.run(i, x.name || '', x.email, x.organisation || '', x.role || '', x.relationship || '',
-        x.personality || '', x.writingStyle || '', x.signature || '', mem(x))
+        x.personality || '', x.writingStyle || '', x.signature || '', mem(x), x.followUps === false ? 0 : 1)
     );
 
     const party = db.prepare('INSERT INTO parties VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -106,11 +110,11 @@ function saveSenario(file, data, { includeSecrets = false, appVersion = '' } = {
         x.personality || '', x.writingStyle || '', x.signature || '', mem(x))
     );
 
-    const thread = db.prepare('INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?, ?)');
+    const thread = db.prepare('INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     const msg = db.prepare('INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    const att = db.prepare('INSERT INTO attachments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const att = db.prepare('INSERT INTO attachments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     for (const t of Object.values(data.threads || {})) {
-      thread.run(t.id, t.subject || '', t.customer || '', t.updatedAt || '', t.status || 'open', t.background ? 1 : 0, t.threadIndex || null);
+      thread.run(t.id, t.subject || '', t.customer || '', t.updatedAt || '', t.status || 'open', t.background ? 1 : 0, t.threadIndex || null, t.resolvedAt || null);
       t.messages.forEach((m, i) => {
         const meta = Object.fromEntries(Object.entries(m).filter(([k]) => !MESSAGE_COLUMNS.has(k)));
         msg.run(m.messageId, t.id, i, m.direction, m.from || '', m.fromName || '',
@@ -118,7 +122,8 @@ function saveSenario(file, data, { includeSecrets = false, appVersion = '' } = {
           Object.keys(meta).length ? JSON.stringify(meta) : null);
         (m.attachments || []).forEach((a, k) =>
           att.run(t.id, i, k, a.filename || '', a.contentType || '', a.size || 0, a.kind || '', a.status || '',
-            a.text || '', a.truncated ? 1 : 0, a.error || '', a.spec ? JSON.stringify(a.spec) : null, a.sent ? 1 : 0)
+            a.text || '', a.truncated ? 1 : 0, a.error || '', a.spec ? JSON.stringify(a.spec) : null, a.sent ? 1 : 0,
+            a.form ? JSON.stringify(a.form) : null, a.filled ? JSON.stringify(a.filled) : null)
         );
       });
     }
@@ -189,6 +194,8 @@ function loadSenario(file) {
     const customers = db.prepare('SELECT * FROM customers ORDER BY position').all().map((x) => ({
       name: x.name, email: x.email, organisation: x.organisation, role: x.role, relationship: x.relationship,
       personality: x.personality, writingStyle: x.writing_style, signature: x.signature, memory: memory(x),
+      // Added in 0.5.0; files saved before have no column, meaning on.
+      ...(x.follow_ups === 0 ? { followUps: false } : {}),
     }));
 
     const threads = {};
@@ -197,6 +204,7 @@ function loadSenario(file) {
       threads[t.id] = { id: t.id, subject: t.subject, customer: t.customer, updatedAt: t.updated_at, messages: [], status: t.status || 'open' };
       if (t.background) threads[t.id].background = true;
       if (t.thread_index) threads[t.id].threadIndex = t.thread_index;
+      if (t.resolved_at) threads[t.id].resolvedAt = t.resolved_at;
     }
     for (const m of db.prepare('SELECT * FROM messages ORDER BY thread_id, position').all()) {
       const t = threads[m.thread_id];
@@ -222,6 +230,9 @@ function loadSenario(file) {
           status: a.status, text: a.text, truncated: !!a.truncated };
         if (a.error) item.error = a.error;
         if (a.spec) { try { item.spec = JSON.parse(a.spec); } catch { /* ignore */ } }
+        // form / filled: added in 0.5.0, absent from older files.
+        if (a.form) { try { item.form = JSON.parse(a.form); } catch { /* ignore */ } }
+        if (a.filled) { try { item.filled = JSON.parse(a.filled); } catch { /* ignore */ } }
         if (a.sent) item.sent = true;
         (m.attachments = m.attachments || []).push(item);
       }

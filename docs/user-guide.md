@@ -93,6 +93,8 @@ Customers are the people who start conversations. They're played by OpenAI.
   domain, such as a buyer and their manager. See [colleagues](#colleagues-and-escalation).
 - **Remembers about the company** is the customer's [memory](#memory) of earlier dealings. It's
   filled in automatically as conversations happen, and you can edit it.
+- **Chases emails that haven't been answered** lets you stop one customer [chasing](#follow-ups)
+  while the others still do. It's on for every customer unless you untick it.
 - Click **Save customers** after editing.
 
 Customer email domains use the fictional TLD set in **Settings → Scenario behaviour** (`.local`
@@ -156,8 +158,10 @@ Click **Start scenario**. The app then:
 1. Sends a new customer email after a random interval (*New customer email every … to …*),
    repeating until stopped. A customer who is still in a conversation isn't picked to start
    another (*Customers have one conversation at a time*). A conversation ends when the customer
-   says they need nothing more, or decides not to reply. If every customer is busy, nothing is
-   sent until one is free.
+   says they need nothing more, or decides not to reply, or when you click
+   [End conversation](#conversations). After that, the customer waits before writing again
+   (*Cooldown after a resolved conversation*, 24 hours of scenario time by default). If every
+   customer is busy or cooling down, nothing is sent until one is free.
 2. Answers every reply from an employee after a random delay (*Customer reply delay*).
 3. Chases unanswered emails if [follow-ups](#follow-ups) are on.
 
@@ -375,6 +379,11 @@ Each chase waits a little longer than the one before. Any reply from the company
 chases on that thread. Customers don't chase when they aren't waiting for anything, for example
 after their own "thanks, all sorted".
 
+To stop chasing, untick *Customers chase emails that haven't been answered* in **Settings →
+Follow-ups** for everyone, or *Chases emails that haven't been answered* on a
+[customer](#customers) for just them. Either takes effect straight away, including chases already
+queued.
+
 ## Email format
 
 By default, emails are sent as **HTML with a plain-text copy** (`multipart/alternative`), the
@@ -411,11 +420,38 @@ customer or party, who then reacts to the specifics: prices, line items, dates a
 - Signature logos embedded in the email body are ignored.
 - If a file can't be read (scanned, corrupt, unsupported or over 25 MB), the customer reacts as a
   real person would, typically by asking for it to be resent.
-- Up to 20,000 characters are kept per attachment. The extracted text is kept, not the file.
+- Up to 20,000 characters are kept per attachment. The extracted text is kept, not the file,
+  except for forms (below).
 - Files are parsed in an isolated worker with a 30-second limit, so a malformed file can't stall
   the app.
 
-Customers and parties never send attachments themselves. They put the details in the email body.
+Customers and parties can also attach documents of their own, such as a purchase order or
+remittance advice (see *Customers can attach documents* in
+[Settings](configuration.md#scenario-behaviour)).
+
+### Forms
+
+Send a customer or party a form, such as an account application, credit form or supplier set-up
+sheet, and ask them to fill it in. They complete it and send it back attached to their reply,
+under its original filename.
+
+| Form | What gets filled in |
+|---|---|
+| PDF | Fillable form fields: text boxes, tick boxes, drop-downs and radio buttons |
+| Word `.docx` | Content controls ("Click or tap here to enter text"), lines like `Name: ________` or `Date: .........`, and empty table cells next to a label |
+| Excel `.xlsx`, `.xls` | The empty cell to the right of a label, such as `Trading name:` |
+
+- They answer as themselves, with plausible made-up details that fit their persona and the
+  conversation. They leave *office use only* boxes, and anything they wouldn't know, blank.
+- The rest of the file is left as it was: layout, formatting and other sheets.
+- A form without blanks the app can find, such as a scanned or flat PDF or an old `.doc`, comes back
+  as a completed copy instead: a new document in the same format listing their answers. This needs
+  *Customers can attach documents* on.
+- The conversation shows *form with N blanks* on your attachment, and *filled in* on theirs. Click
+  **Save** to keep a copy of the filled-in form. In the [Outbox](#outbox), untick *Attach the
+  completed form* to send the reply without it.
+- Forms up to 1 MB are kept with the conversation (and in `.senario` files) so they can be
+  filled in later.
 
 ## Operating year
 

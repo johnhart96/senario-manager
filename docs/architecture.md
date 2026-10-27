@@ -28,12 +28,13 @@ src/
     ├── ai.js               OpenAI prompts (customer email, reply, follow-up, image transcription)
     ├── compose.js          Outgoing text + HTML bodies, per-sender mail program, headers, layouts
     ├── documents.js        Generates PDF / Word / Excel attachments from an AI-written spec
+    ├── forms.js            Finds the blanks in PDF / Word / Excel forms and fills them in
     ├── calendar.js         iCalendar meeting invitations and responses
     ├── report.js           Trainee performance report (metrics + HTML)
     ├── templates.js        Lists and loads src/templates/*.json
     ├── mail.js             Outbound SMTP and the inbound SMTP listener, locked to one server
     ├── attachments.js      Attachment type detection; runs the parser worker; prompt formatting
-    ├── extract-worker.js   Worker thread that turns one file into text
+    ├── extract-worker.js   Worker thread that turns one file into text, or finds/fills a form's blanks
     ├── clock.js            Maps real time onto the company's operating year
     ├── store.js            Working state in the user-data folder (JSON, secrets encrypted)
     └── senario-file.js     .senario save/load (SQLite via node:sqlite)
@@ -90,16 +91,19 @@ flowchart TB
 
 Every outgoing email (new, reply, chase, inject, manual, out-of-office, background) is a **draft**:
 plain data such as `{ kind, sender, to, cc, subject, body, threadId, quotedId, followUp,
-document, meeting, headers, layout }`. `submit(draft)` either holds it in `data.outbox` (review
-mode, unless `skipReview`) or calls `sendDraft()`. That renders any document, builds any calendar
-invitation, calls `deliver()`, records memory notes and thread status, and schedules the
+document, forms, meeting, headers, layout }`. `submit(draft)` either holds it in `data.outbox`
+(review mode, unless `skipReview`) or calls `sendDraft()`. That renders any document, fills in any
+forms (`filledForm()`), builds any calendar invitation, calls `deliver()`, records memory notes and thread status, and schedules the
 follow-up. Because drafts are data, they survive restarts and `.senario` saves.
 
 ### Outbound: a new customer email
 
 1. `scheduleNextEvent()` sets a timer for a random interval divided by the pace.
-2. `generateEvent()` picks a random **customer** (never a party) and calls
-   `ai.writeCustomerEmail()`. The model chooses the recipient from the employee list. The engine
+2. `generateEvent()` picks a random **customer** (never a party), skipping those in
+   `busyCustomers()` (an open conversation or a new email in the Outbox, when *one conversation
+   at a time* is on) and `coolingDown()` (a conversation resolved less than the cooldown ago,
+   from `thread.resolvedAt`, in scenario time). An explicitly chosen customer or party skips
+   both checks. It then calls `ai.writeCustomerEmail()`. The model chooses the recipient from the employee list. The engine
    validates it, falling back to a random employee if needed.
 3. `submit()` → `sendDraft()` → `deliver()`. `deliver()` checks the recipients (company
    addresses, plus known contacts as colleagues), builds the body with
@@ -113,10 +117,12 @@ follow-up. Because drafts are data, they survive restarts and `.senario` saves.
 1. The mail server connects to the listener (`mail.startListener`). `onConnect` rejects any IP
    not in the allowed set, and `onRcptTo` rejects recipients outside `contactDomains()`.
 2. `handleIncoming()` deduplicates by Message-ID and ignores the app's own mail, bounces and
-   auto-replies. It then extracts attachments, finds the thread (by `In-Reply-To`/`References`,
+   auto-replies. It then extracts attachments (keeping the original of any form, with its
+   blanks, as `attachment.form`), finds the thread (by `In-Reply-To`/`References`,
    or by subject and customer), cancels pending follow-ups on that thread, and queues a reply
    from the addressed customer or party.
-3. `runReply()` calls `ai.writeCustomerReply()` with the whole thread, including attachment text.
+3. `runReply()` calls `ai.writeCustomerReply()` with the whole thread, including attachment text
+   and the blanks of any form, whose answers (`fillForms`) become the draft's `forms`.
    It sends a reply-all (company addresses only) that quotes the previous message, then
    schedules a follow-up if the customer is waiting on something.
 
@@ -225,9 +231,10 @@ Changes must keep these true. The tests check them.
 | `e2e.test.js` | Full loop against a local SMTP sink and the real listener: sending, replies, threading, refusals, auto-replies, follow-ups, pace, attachments |
 | `operating-year.test.js` | Prompts, `Date:` headers and quoted dates in a past year, sent through a fake OpenAI server |
 | `parties.test.js` | Parties never initiate on their own, *Send an email now* as a party, supplier framing, optional chasing, persistence |
-| `exercises.test.js` | One conversation at a time, ending and removing conversations, review queue, manual compose, mail-program headers, generated documents, meeting invitations and responses, colleagues and escalation, memory, out-of-office, background mail, injects on the exercise clock, the report, DKIM, templates, `.senario` v2 |
+| `exercises.test.js` | One conversation at a time, ending and removing conversations, per-customer follow-ups, forms sent back filled in, cooldown after a resolved conversation, review queue, manual compose, mail-program headers, generated documents, meeting invitations and responses, colleagues and escalation, memory, out-of-office, background mail, injects on the exercise clock, the report, DKIM, templates, `.senario` v2 |
 | `html-email.test.js` | HTML composition: escaping, lists, era fonts, both quoting styles, multipart/alternative over SMTP, plain-text mode |
 | `attachments.test.js` | Every supported format, plus corrupt and unsupported files and inline logos |
+| `forms.test.js` | Finding and filling the blanks in PDF, Word (cells, lines, content controls) and Excel (`.xlsx`, `.xls`) forms |
 | `senario-file.test.js` | Save/load round trip, credentials, overwrite, invalid files |
 
 `npm run test:packaged` checks a build from `npm run pack`: the parser workers and SQLite must

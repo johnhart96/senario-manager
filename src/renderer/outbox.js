@@ -36,6 +36,7 @@ function draftHtml(d) {
     <label>Subject</label><input data-d="subject" value="${esc(d.subject)}" />
     <label>Message</label><textarea data-d="body" rows="${Math.min(14, Math.max(5, (d.body || '').split('\n').length + 1))}">${esc(d.body)}</textarea>
     ${doc ? `<label class="check"><input type="checkbox" data-d="keepDocument" checked /> Attach ${esc(doc)}</label>` : ''}
+    ${d.forms && d.forms.length ? `<label class="check"><input type="checkbox" data-d="keepForms" checked /> Attach the completed form${d.forms.length > 1 ? 's' : ''} (${d.forms.map((f) => `${Object.keys(f.answers).length} answers`).join(', ')})</label>` : ''}
     ${d.meeting ? `<label class="check"><input type="checkbox" data-d="keepMeeting" checked /> Include meeting invitation: ${esc(d.meeting.title)} (${esc(d.meeting.start)})</label>` : ''}
     ${d.error ? `<div class="draft-error">Last attempt failed: ${esc(d.error)}</div>` : ''}
     <div class="row">
@@ -76,6 +77,7 @@ $('#drafts').addEventListener('click', (e) => {
     body: get('body').value,
     dropDocument: get('keepDocument') ? !get('keepDocument').checked : false,
     dropMeeting: get('keepMeeting') ? !get('keepMeeting').checked : false,
+    dropForms: get('keepForms') ? !get('keepForms').checked : false,
   };
   busy(btn, async () => {
     await window.api.approveDraft(id, edits);

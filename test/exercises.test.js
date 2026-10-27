@@ -2,7 +2,9 @@
 // Exercise and realism features: review queue, manual compose, headers, documents,
 // meeting invitations, colleagues and escalation, memory, out-of-office, background
 // mail, scripted injects, the report, templates, DKIM, .senario persistence, one
-// conversation at a time per customer, and ending or removing a conversation.
+// conversation at a time per customer, ending or removing a conversation, and
+// follow-ups per customer, forms filled in and sent back, and the cooldown after a
+// resolved conversation.
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
@@ -374,6 +376,100 @@ const DANA = 'dana@bright.local';
   assert.ok(!Object.values(store.data.msgIndex).includes(t16.id), 'message index cleaned');
   assert.throws(() => engine.removeThread(t16.id), /no longer exists/);
   console.log('OK 16: ending cancels queued replies; removing deletes the conversation and its index');
+
+  // 17. Follow-ups per customer, and switching chasing off after chases were queued.
+  Object.assign(store.settings.scenario, { followUpEnabled: true, followUpMax: 2 });
+  store.setCustomers(store.customers.map((c) => (c.email === DANA ? { ...c, followUps: false } : c)));
+  const t17 = Object.values(store.data.threads).find((t) => t.customer === outlookAddr.toLowerCase());
+  const last17 = t17.messages[t17.messages.length - 1];
+  const queued = () => store.data.pending.filter((j) => j.type === 'followup');
+  store.data.pending = store.data.pending.filter((j) => j.type !== 'followup');
+  engine.scheduleFollowUp(engine.contactMap().get(DANA), t17.id, last17.messageId);
+  assert.strictEqual(queued().length, 0, 'customer with chasing off: nothing queued');
+  engine.scheduleFollowUp(engine.contactMap().get(outlookAddr.toLowerCase()), t17.id, last17.messageId);
+  assert.strictEqual(queued().length, 1, 'other customers still chase');
+  const n17 = captured.length;
+  store.settings.scenario.followUpEnabled = false;
+  await engine.runFollowUp(queued()[0]);
+  await wait(300);
+  assert.strictEqual(captured.length, n17, 'a chase queued before switching off is not sent');
+  assert.strictEqual(queued().length, 0, 'and it is dropped');
+  const f17 = path.join(os.tmpdir(), `fu-${process.pid}.senario`);
+  saveSenario(f17, store.data, { includeSecrets: false, appVersion: 'test' });
+  const back17 = loadSenario(f17).data.customers;
+  assert.strictEqual(back17.find((c) => c.email === DANA).followUps, false);
+  assert.ok(!('followUps' in back17.find((c) => c.email === outlookAddr.toLowerCase())), 'default stays implicit');
+  fs.rmSync(f17);
+  console.log('OK 17: per-customer follow-ups, switching off drops queued chases, saved in .senario');
+
+  // 18. A form sent by an employee comes back filled in.
+  const { PDFDocument } = require(ROOT + '/node_modules/pdf-lib');
+  const formDoc = await PDFDocument.create();
+  const formPage = formDoc.addPage([595, 842]);
+  formDoc.getForm().createTextField('CompanyName').addToPage(formPage, { x: 200, y: 700, width: 300, height: 20 });
+  formDoc.getForm().createTextField('AccountsEmail').addToPage(formPage, { x: 200, y: 660, width: 300, height: 20 });
+  formDoc.getForm().createCheckBox('AgreeToTerms').addToPage(formPage, { x: 200, y: 620, width: 15, height: 15 });
+  formPage.drawText('Credit account application', { x: 50, y: 780, size: 16 });
+  const formPdf = Buffer.from(await formDoc.save());
+  Object.assign(store.settings.scenario, { replyDelayMinSec: 0, replyDelayMaxSec: 0, reviewBeforeSend: false });
+  const replyBefore = answers.reply;
+  answers.reply = () => ({ shouldReply: true, expectsResponse: true, body: 'Hi Ann,\nCompleted form attached.\n\nDana',
+    fillForms: [{ file: 'Credit application.pdf', answers: { f1: 'Bright Ltd', f2: 'accounts@bright.local', f3: 'yes', f99: 'ignored' } }] });
+  const n18 = captured.length;
+  await toApp({ from: 'Ann Accounts <ann@co.local>', to: DANA, subject: 'Credit account', messageId: '<form-1@co.local>', text: 'Hi Dana, please fill in the attached form.',
+    attachments: [{ filename: 'Credit application.pdf', content: formPdf, contentType: 'application/pdf' }] });
+  assert.ok(await until(() => captured.length > n18, 8000), 'customer replied');
+  answers.reply = replyBefore;
+  assert.match(lastPrompt('reply'), /\[Blanks you can fill in on Credit application\.pdf, by id\]\nf1: Company Name\nf2: Accounts Email\nf3: Agree To Terms \(tick box: yes or no\)/);
+  const formReply = await simpleParser(captured[n18].raw);
+  const sentForm = formReply.attachments.find((a) => a.filename === 'Credit application.pdf');
+  assert.ok(sentForm, 'the original form is sent back under its own name');
+  const filledBack = (await PDFDocument.load(sentForm.content)).getForm();
+  assert.strictEqual(filledBack.getTextField('CompanyName').getText(), 'Bright Ltd');
+  assert.strictEqual(filledBack.getTextField('AccountsEmail').getText(), 'accounts@bright.local');
+  assert.ok(filledBack.getCheckBox('AgreeToTerms').isChecked());
+  const t18 = Object.values(store.data.threads).find((t) => t.subject === 'Credit account');
+  const rec18 = t18.messages[t18.messages.length - 1].attachments[0];
+  assert.ok(rec18.filled && rec18.sent);
+  assert.match(rec18.text, /Company Name: Bright Ltd/);
+  assert.ok(t18.messages[0].attachments[0].form.data, 'original kept with the employee\'s message');
+  const f18 = path.join(os.tmpdir(), `form-${process.pid}.senario`);
+  saveSenario(f18, store.data, { includeSecrets: false, appVersion: 'test' });
+  const back18 = loadSenario(f18).data.threads[t18.id];
+  assert.deepStrictEqual(back18.messages[0].attachments[0].form, t18.messages[0].attachments[0].form);
+  assert.deepStrictEqual(back18.messages[back18.messages.length - 1].attachments[0].filled, rec18.filled);
+  fs.rmSync(f18);
+  console.log('OK 18: a PDF form sent to a customer comes back filled in, and the form survives .senario');
+
+  // 19. Cooldown: a customer whose conversation was just resolved isn't picked again for a while.
+  engine.resetConversations();
+  Object.assign(store.settings.scenario, { oneConversationAtATime: false, cooldownHours: 1, reviewBeforeSend: false, pace: 1 });
+  const n19 = captured.length;
+  await engine.generateEvent();
+  assert.ok(await until(() => captured.length === n19 + 1));
+  const first = captured[n19].from.toLowerCase();
+  const other = first === DANA ? outlookAddr.toLowerCase() : DANA;
+  const t19 = Object.values(store.data.threads).find((t) => t.customer === first);
+  engine.endThread(t19.id);
+  assert.ok(t19.resolvedAt, 'resolved time recorded');
+  for (let i = 0; i < 5; i++) await engine.generateEvent();
+  assert.ok(await until(() => captured.length === n19 + 6));
+  assert.ok(captured.slice(n19 + 1).every((c) => c.from.toLowerCase() === other), 'only the other customer is picked during the cooldown');
+  await engine.sendNow(first);
+  assert.ok(await until(() => captured.length === n19 + 7) && captured[n19 + 6].from.toLowerCase() === first, 'choosing them yourself still works');
+  // At 60x pace, an hour's cooldown passes in a minute.
+  t19.resolvedAt = new Date(Date.now() - 2 * 60000).toISOString();
+  store.settings.scenario.pace = 60;
+  assert.ok(!engine.coolingDown().has(first), 'cooldown is in scenario time');
+  store.settings.scenario.pace = 1;
+  assert.ok(engine.coolingDown().has(first));
+  const f19 = path.join(os.tmpdir(), `cool-${process.pid}.senario`);
+  saveSenario(f19, store.data, { includeSecrets: false, appVersion: 'test' });
+  assert.strictEqual(loadSenario(f19).data.threads[t19.id].resolvedAt, t19.resolvedAt);
+  fs.rmSync(f19);
+  store.settings.scenario.cooldownHours = 0;
+  assert.strictEqual(engine.coolingDown().size, 0, '0 turns it off');
+  console.log('OK 19: cooldown after a resolved conversation (scenario time, explicit picks allowed, saved in .senario)');
 
   await engine.shutdown();
   openai.close();
