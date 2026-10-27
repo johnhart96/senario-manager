@@ -57,11 +57,18 @@ contextBridge.exposeInMainWorld('api', {
   listThreads: () => call('threads:list'),
   getThread: (id) => call('threads:get', id),
   endThread: (id) => call('threads:end', id),
+  bank: () => call('bank:get'),
+  setBankAccount: (patch) => call('bank:setAccount', patch),
+  addTransaction: (t) => call('bank:addTransaction', t),
+  removeTransaction: (id) => call('bank:removeTransaction', id),
+  payNow: (id) => call('bank:payNow', id),
+  cancelPayment: (id) => call('bank:cancelPayment', id),
+  sendStatement: (opts) => call('bank:sendStatement', opts),
   removeThread: (id) => call('threads:remove', id),
   testOpenAI: () => call('test:openai'),
   testSmtp: () => call('test:smtp'),
   on: (channel, fn) => {
-    const allowed = ['log', 'status', 'threads-changed', 'state-loaded', 'file-status', 'outbox-changed', 'injects-changed', 'settings-changed', 'update-status'];
+    const allowed = ['log', 'status', 'threads-changed', 'state-loaded', 'file-status', 'outbox-changed', 'bank-changed', 'injects-changed', 'settings-changed', 'update-status'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, (_e, payload) => fn(payload));
   },

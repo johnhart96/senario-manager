@@ -22,7 +22,8 @@ CREATE TABLE employees (
 CREATE TABLE customers (
   position INTEGER PRIMARY KEY, name TEXT, email TEXT NOT NULL, organisation TEXT, role TEXT,
   relationship TEXT, personality TEXT, writing_style TEXT, signature TEXT, memory TEXT, -- JSON array
-  follow_ups INTEGER NOT NULL DEFAULT 1
+  follow_ups INTEGER NOT NULL DEFAULT 1,
+  payment_habit TEXT -- '', 'prompt' or 'delayed' (0.6.0)
 );
 CREATE TABLE parties (
   position INTEGER PRIMARY KEY, name TEXT, email TEXT NOT NULL, organisation TEXT, role TEXT,
@@ -43,7 +44,8 @@ CREATE TABLE messages (
 CREATE INDEX messages_by_id ON messages (message_id);
 CREATE TABLE pending_jobs (
   id TEXT PRIMARY KEY, type TEXT NOT NULL, customer TEXT, thread_id TEXT, ref_message_id TEXT,
-  attempt INTEGER, remaining_ms INTEGER NOT NULL, scenario_ms INTEGER
+  attempt INTEGER, remaining_ms INTEGER NOT NULL, scenario_ms INTEGER,
+  data TEXT -- JSON extras, e.g. a payment's { reference, amount, threadId, replyToId } (0.6.0)
 );
 CREATE TABLE attachments (
   thread_id TEXT NOT NULL, position INTEGER NOT NULL, idx INTEGER NOT NULL,
@@ -56,7 +58,11 @@ CREATE TABLE attachments (
 );
 CREATE TABLE outbox (position INTEGER PRIMARY KEY, draft TEXT NOT NULL);   -- JSON drafts awaiting review
 CREATE TABLE injects (position INTEGER PRIMARY KEY, inject TEXT NOT NULL); -- JSON scripted events
-CREATE TABLE state (key TEXT PRIMARY KEY, value TEXT NOT NULL);            -- JSON: exercise clock, DKIM keys
+CREATE TABLE state (key TEXT PRIMARY KEY, value TEXT NOT NULL);            -- JSON: exercise clock, DKIM keys, bank account
+CREATE TABLE bank_transactions (                                            -- added in 0.6.0
+  position INTEGER PRIMARY KEY, id TEXT NOT NULL, date TEXT NOT NULL, amount INTEGER NOT NULL, -- minor units, + in / - out
+  description TEXT, reference TEXT, counterparty TEXT, customer TEXT, invoice TEXT
+);
 CREATE TABLE activity_log (id INTEGER PRIMARY KEY, time TEXT NOT NULL, level TEXT NOT NULL, message TEXT NOT NULL);
 CREATE TABLE seen_messages (message_id TEXT PRIMARY KEY, kind TEXT NOT NULL, at INTEGER); -- sent | processed
 `;
@@ -98,10 +104,10 @@ function saveSenario(file, data, { includeSecrets = false, appVersion = '' } = {
     (c.employees || []).forEach((e, i) => emp.run(i, e.name || '', e.email, e.role || '', e.responsibilities || ''));
 
     const mem = (x) => JSON.stringify(Array.isArray(x.memory) ? x.memory : []);
-    const cust = db.prepare('INSERT INTO customers VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const cust = db.prepare('INSERT INTO customers VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     (data.customers || []).forEach((x, i) =>
       cust.run(i, x.name || '', x.email, x.organisation || '', x.role || '', x.relationship || '',
-        x.personality || '', x.writingStyle || '', x.signature || '', mem(x), x.followUps === false ? 0 : 1)
+        x.personality || '', x.writingStyle || '', x.signature || '', mem(x), x.followUps === false ? 0 : 1, x.paymentHabit || null)
     );
 
     const party = db.prepare('INSERT INTO parties VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -138,13 +144,18 @@ function saveSenario(file, data, { includeSecrets = false, appVersion = '' } = {
     const running = ex.runningSince ? (Date.now() - ex.runningSince) * (Number(data.settings.scenario && data.settings.scenario.pace) || 1) : 0;
     state.run('exercise', JSON.stringify({ elapsedMs: (ex.elapsedMs || 0) + running, runningSince: null, startedAt: ex.startedAt || null }));
     state.run('dkimKeys', JSON.stringify(data.dkimKeys || {}));
+    const bankData = data.bank || {};
+    state.run('bankAccount', JSON.stringify(bankData.account || {}));
+    const tx = db.prepare('INSERT INTO bank_transactions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    (bankData.transactions || []).forEach((t, i) => tx.run(i, t.id, t.date, Math.round(t.amount) || 0, t.description || '',
+      t.reference || null, t.counterparty || null, t.customer || null, t.invoice || null));
 
     // Jobs keep the time they had left, so a loaded scenario resumes where it was.
     const now = Date.now();
-    const job = db.prepare('INSERT INTO pending_jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    const job = db.prepare('INSERT INTO pending_jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
     for (const j of data.pending || []) {
       job.run(j.id, j.type || 'reply', j.customer || '', j.threadId || '', j.replyToId || j.afterId || '',
-        j.attempt || 0, Math.max(0, Math.round(j.due - now)), Math.round(j.scenarioMs || 0));
+        j.attempt || 0, Math.max(0, Math.round(j.due - now)), Math.round(j.scenarioMs || 0), j.payment ? JSON.stringify(j.payment) : null);
     }
 
     const seen = db.prepare('INSERT OR IGNORE INTO seen_messages VALUES (?, ?, ?)');
@@ -196,6 +207,7 @@ function loadSenario(file) {
       personality: x.personality, writingStyle: x.writing_style, signature: x.signature, memory: memory(x),
       // Added in 0.5.0; files saved before have no column, meaning on.
       ...(x.follow_ups === 0 ? { followUps: false } : {}),
+      ...(x.payment_habit ? { paymentHabit: x.payment_habit } : {}),
     }));
 
     const threads = {};
@@ -250,12 +262,23 @@ function loadSenario(file) {
     const stateRows = hasTable('state') ? Object.fromEntries(db.prepare('SELECT key, value FROM state').all().map((r) => [r.key, json(r.value, null)])) : {};
     const exercise = { elapsedMs: 0, runningSince: null, startedAt: null, ...(stateRows.exercise || {}), runningSince: null };
     const dkimKeys = stateRows.dkimKeys || {};
+    // Files from before 0.6.0 have no bank: the defaults apply.
+    const bankData = {
+      account: stateRows.bankAccount || {},
+      transactions: hasTable('bank_transactions')
+        ? db.prepare('SELECT * FROM bank_transactions ORDER BY position').all().map((t) => Object.fromEntries(Object.entries({
+          id: t.id, date: t.date, amount: Number(t.amount), description: t.description, reference: t.reference,
+          counterparty: t.counterparty, customer: t.customer, invoice: t.invoice,
+        }).filter(([, v]) => v !== null && v !== undefined)))
+        : [],
+    };
 
     const now = Date.now();
     const pending = db.prepare('SELECT * FROM pending_jobs').all().map((j) => {
       const job = { id: j.id, type: j.type, customer: j.customer, threadId: j.thread_id,
         due: now + Number(j.remaining_ms), scenarioMs: Number(j.scenario_ms) };
       if (j.type === 'followup') Object.assign(job, { afterId: j.ref_message_id, attempt: Number(j.attempt) || 1 });
+      else if (j.type === 'payment') { delete job.threadId; job.payment = json(j.data, {}); }
       else job.replyToId = j.ref_message_id;
       return job;
     });
@@ -274,7 +297,7 @@ function loadSenario(file) {
     return {
       meta,
       includesCredentials: meta.includes_credentials === '1',
-      data: { settings, company, customers, parties, outbox, injects, exercise, dkimKeys, threads, msgIndex, sentIds, processedIds, pending, log },
+      data: { settings, company, customers, parties, outbox, injects, exercise, dkimKeys, bank: bankData, threads, msgIndex, sentIds, processedIds, pending, log },
     };
   } catch (e) {
     throw new Error(`Could not open ${file}: ${/senario|newer/.test(e.message) ? e.message : 'not a valid .senario file (' + e.message + ')'}`);

@@ -82,6 +82,7 @@ function wire() {
   engine.on('status', (s) => send('status', s));
   engine.on('threads-changed', () => send('threads-changed'));
   engine.on('outbox-changed', () => send('outbox-changed'));
+  engine.on('bank-changed', () => send('bank-changed'));
   engine.on('injects-changed', () => send('injects-changed'));
   engine.on('settings-changed', () => {
     store.save();
@@ -280,6 +281,13 @@ function wire() {
     return { ...t, messages: t.messages.map((msg) => (msg.attachments ? { ...msg, attachments: msg.attachments.map(lite) } : msg)) };
   });
   handle('threads:end', (id) => engine.endThread(id));
+  handle('bank:get', () => engine.bankState());
+  handle('bank:setAccount', (patch) => engine.setBankAccount(patch || {}));
+  handle('bank:addTransaction', (t) => engine.addTransaction(t || {}));
+  handle('bank:removeTransaction', (id) => engine.removeTransaction(id));
+  handle('bank:payNow', (id) => engine.payNow(id));
+  handle('bank:cancelPayment', (id) => engine.cancelPayment(id));
+  handle('bank:sendStatement', (opts) => engine.sendStatement(opts || {}));
   handle('threads:remove', (id) => engine.removeThread(id));
 
   handle('test:openai', () => ai.testConnection(store.settings.openai));

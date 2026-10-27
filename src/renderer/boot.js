@@ -11,6 +11,7 @@ window.api.on('threads-changed', () => {
   if ($('#tab-report').classList.contains('active')) loadReport();
 });
 window.api.on('outbox-changed', loadOutbox);
+window.api.on('bank-changed', () => { if ($('#tab-bank').classList.contains('active')) loadBank(); });
 window.api.on('injects-changed', loadInjects);
 window.api.on('settings-changed', async () => {
   // An inject changed the guidance: refresh just that field, keeping other unsaved edits.

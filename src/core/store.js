@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { DEFAULT_ACCOUNT } = require('./bank');
 
 // Fields holding credentials. They are encrypted at rest with Electron's
 // safeStorage when the OS keyring is available.
@@ -60,6 +61,13 @@ const DEFAULT_SETTINGS = {
     backgroundMinMin: 45,
     backgroundMaxMin: 180,
     pace: 1, // 1 = real business time; e.g. 60 = an hour passes in a minute
+    // Banking: customers pay invoices they're sent (scenario time).
+    bankingEnabled: true,
+    payPromptMinMin: 5, // "straight away" payers: minutes
+    payPromptMaxMin: 60,
+    payDelayMinHours: 4, // "after a short delay" payers: hours
+    payDelayMaxHours: 72,
+    remittanceChance: 0.5, // chance a payer emails a remittance advice
   },
 };
 
@@ -88,6 +96,7 @@ const DEFAULT_DATA = {
   injects: [], // scripted exercise events
   exercise: { elapsedMs: 0, runningSince: null, startedAt: null }, // exercise clock (scenario time)
   dkimKeys: {}, // domain -> { selector, privateKey, publicKey }
+  bank: { account: { ...DEFAULT_ACCOUNT }, transactions: [] }, // see core/bank.js
   log: [], // activity log: { time, level, message }
   // App-level state, never written into .senario files.
   appState: { currentFile: null, includeSecrets: false, autoSave: true, autoUpdate: true },
@@ -225,7 +234,8 @@ class Store {
     this.data.msgIndex = {};
     this.data.sentIds = {};
     this.data.processedIds = {};
-    this.data.pending = [];
+    // Payments customers have promised are money, not conversation: they stay.
+    this.data.pending = (this.data.pending || []).filter((j) => j.type === 'payment');
     this.data.outbox = [];
     this.save();
   }

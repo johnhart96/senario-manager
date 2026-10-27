@@ -95,8 +95,20 @@ const seed = {
     { id: 'i4', at: 180, title: 'Escalation from the GM', type: 'email', from: customers[0].email, to: [employees[3].email], mode: 'brief', body: 'Formal complaint about the desk failure.', expectReply: true, status: 'pending' },
   ],
   exercise: { elapsedMs: 96 * 60000, runningSince: null, startedAt: ago(100) },
+  bank: {
+    account: { bankName: 'Northern Counties Bank', accountName: 'Northwind Stage Lighting Ltd', sortCode: '40-12-76', accountNumber: '31926819', currency: 'GBP', openingBalance: 1845000, openedOn: '2005-04-01' },
+    transactions: [
+      { id: 'b1', date: '2005-10-03', amount: 186000, description: 'BGC PIKE EVENTS INV-2201', customer: customers[1].email, invoice: 'INV-2201' },
+      { id: 'b2', date: '2005-10-04', amount: -8437, description: 'DD BRITISH TELECOM' },
+      { id: 'b3', date: '2005-10-07', amount: 72000, description: "BGC ST MARYS SCHOOL INV-2190", customer: customers[2].email, invoice: 'INV-2190' },
+      { id: 'b4', date: '2005-10-10', amount: -125000, description: 'CHQ 100234 UNIT 4 RENT' },
+      { id: 'b5', date: '2005-10-14', amount: -942000, description: 'BACS SALARIES OCT' },
+      { id: 'b6', date: '2005-10-21', amount: 305265, description: 'BGC RIVERSIDE THEATRE INV-2196', customer: customers[0].email, invoice: 'INV-2196' },
+    ],
+  },
   pending: [
     { id: 'j1', type: 'reply', customer: customers[0].email, threadId: 't1', replyToId: '<s1@northwind.local>', due: now + 9 * 60000, scenarioMs: 3600000 },
+    { id: 'j3', type: 'payment', customer: customers[3].email, payment: { reference: 'INV-2214', amount: 64000, threadId: 't3' }, due: now + 3 * 3600000, scenarioMs: 3 * 3600000 },
     { id: 'j2', type: 'followup', customer: customers[1].email, threadId: 't3', afterId: '<g2@pikeevents.local>', attempt: 2, due: now + 40 * 60000, scenarioMs: 7200000 },
   ],
   log: [
@@ -128,6 +140,7 @@ const SHOTS = [
   ['settings', `document.querySelector('[data-tab=settings]').click()`],
   ['injects', `document.querySelector('[data-tab=injects]').click()`, `document.querySelectorAll('#injects .inject')[2].open = true`],
   ['outbox', `document.querySelector('[data-tab=outbox]').click()`],
+  ['bank', `document.querySelector('[data-tab=bank]').click()`],
   ['report', `document.querySelector('[data-tab=report]').click()`],
   ['templates', `document.querySelector('[data-tab=company]').click(); document.querySelector('#newScenario').click()`],
   ['updates', `document.querySelector('#closeModal').click(); document.querySelector('[data-tab=settings]').click()`, `document.querySelector('#updatesCard').scrollIntoView({ block: 'center' })`],

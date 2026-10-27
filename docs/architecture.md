@@ -18,6 +18,7 @@ src/
 │   ├── renderer.js         UI logic (forms, conversations, pace slider, file box)
 │   ├── injects.js          Injects tab: the exercise timeline and its clock
 │   ├── outbox.js           Outbox tab: drafts held for review, writing an email yourself
+│   ├── bank.js             Bank tab: balance, expected payments, transactions, statements
 │   ├── report.js           Report tab: per-employee performance and conversation outcomes
 │   ├── templates.js        "New" button: start from a ready-made template or blank
 │   ├── updates.js          Settings → Updates card and the update-ready banner
@@ -31,6 +32,7 @@ src/
     ├── forms.js            Finds the blanks in PDF / Word / Excel forms and fills them in
     ├── calendar.js         iCalendar meeting invitations and responses
     ├── report.js           Trainee performance report (metrics + HTML)
+    ├── bank.js             Bank account ledger, money formatting and PDF statements
     ├── templates.js        Lists and loads src/templates/*.json
     ├── mail.js             Outbound SMTP and the inbound SMTP listener, locked to one server
     ├── attachments.js      Attachment type detection; runs the parser worker; prompt formatting
@@ -125,6 +127,20 @@ follow-up. Because drafts are data, they survive restarts and `.senario` saves.
    and the blanks of any form, whose answers (`fillForms`) become the draft's `forms`.
    It sends a reply-all (company addresses only) that quotes the previous message, then
    schedules a follow-up if the customer is waiting on something.
+
+### Banking
+
+`data.bank = { account, transactions }` (amounts in minor units; see `core/bank.js`). When banking
+is on, `writeCustomerReply()` may return `payInvoice: { reference, amount }`. `runReply()` hands it
+to `promisePayment()` (even if the customer doesn't write back), which skips an invoice already
+paid or promised and queues a `payment` job after a delay that depends on the customer's
+`paymentHabit`. The job keeps its thread under `job.payment`, not `job.threadId`, so ending or
+removing the conversation doesn't cancel it, and clearing conversations keeps it.
+`runPayment()` adds the credit (dated `scenarioNow()`), then, by `remittanceChance`, asks
+`ai.writeRemittance()` for a short email (optionally with a remittance advice) sent in the invoice's
+thread as a resolving reply. `sendStatement()` submits a `statement` draft from an inline bank
+sender. `sendDraft()` renders `bank.statement()` as its PDF attachment, and the thread is marked
+background.
 
 ### The exercise clock and injects
 
@@ -234,6 +250,7 @@ Changes must keep these true. The tests check them.
 | `exercises.test.js` | One conversation at a time, ending and removing conversations, per-customer follow-ups, forms sent back filled in, cooldown after a resolved conversation, review queue, manual compose, mail-program headers, generated documents, meeting invitations and responses, colleagues and escalation, memory, out-of-office, background mail, injects on the exercise clock, the report, DKIM, templates, `.senario` v2 |
 | `html-email.test.js` | HTML composition: escaping, lists, era fonts, both quoting styles, multipart/alternative over SMTP, plain-text mode |
 | `attachments.test.js` | Every supported format, plus corrupt and unsupported files and inline logos |
+| `banking.test.js` | Invoices paid straight away and after a delay, remittance emails, duplicates, Pay now / Cancel, manual transactions, the emailed PDF statement, banking off, persistence |
 | `forms.test.js` | Finding and filling the blanks in PDF, Word (cells, lines, content controls) and Excel (`.xlsx`, `.xls`) forms |
 | `senario-file.test.js` | Save/load round trip, credentials, overwrite, invalid files |
 

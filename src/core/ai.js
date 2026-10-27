@@ -104,9 +104,16 @@ const roleOf = (c) => (c.kind === 'party'
 
 // Optional extras the model may add to any email it writes.
 // forms: the fillable forms on the message being replied to (replies only).
-function extrasSpec({ allowDocuments, allowMeetings, colleagues, forms }) {
+function extrasSpec({ allowDocuments, allowMeetings, colleagues, forms, canPay }) {
   const fields = [];
   const rules = [];
+  if (canPay) {
+    fields.push('"payInvoice": null or {"reference": "the invoice number", "amount": total due as a number, e.g. 1234.50}');
+    rules.push(`If the newest message from the company is (or attaches) an invoice, bill or request for payment
+addressed to you, for something you did order or owe, set "payInvoice" with its reference and
+the total amount due: you will pay it by bank transfer. If it's wrong, not yours or disputed, set
+it to null and say so in the email. Don't set it for quotes, estimates or invoices you already paid.`);
+  }
   if (forms && forms.length) {
     fields.push('"fillForms": [] or [{"file": "exact filename of the form", "answers": {"field id": "value"}}]');
     rules.push(`The company sent a form with blanks to fill in (${forms.map((a) => a.filename).join(', ')}). If they asked
@@ -256,8 +263,8 @@ ${x.fields}}`;
 }
 
 // The customer's response to a reply from the company.
-async function writeCustomerReply(openai, { company, customer, colleagues = [], thread, incoming, guidance, now, allowDocuments, allowMeetings }) {
-  const x = extrasSpec({ allowDocuments, allowMeetings, colleagues, forms: (incoming.attachments || []).filter((a) => a.form) });
+async function writeCustomerReply(openai, { company, customer, colleagues = [], thread, incoming, guidance, now, allowDocuments, allowMeetings, canPay }) {
+  const x = extrasSpec({ allowDocuments, allowMeetings, colleagues, forms: (incoming.attachments || []).filter((a) => a.form), canPay });
   const system = `You write email replies as a specific ${roleOf(customer)}. ${REALISM}
 Stay consistent with everything already said in the thread and react to what the company
 actually wrote: answer their questions, push back if they were unhelpful, accept good solutions.
@@ -284,6 +291,27 @@ WITHOUT quoting the earlier message", "expectsResponse": true|false (whether you
 the company for something, e.g. an answer, quote, confirmation or action),
 ${x.fields}}`;
   return chatJSON(openai, system, user, 0.9);
+}
+
+// A short note that a payment has been made, sent in the invoice's thread.
+async function writeRemittance(openai, { company, customer, colleagues = [], reference, amount, now, allowDocuments }) {
+  const system = `You write emails as a specific ${roleOf(customer)}. ${REALISM}
+Return JSON only.`;
+  const user = `${companyBrief(company)}
+
+You are writing as:
+${customerBrief(customer, colleagues)}
+
+Current date/time: ${now}
+You have just paid the company's invoice ${reference || ''} (${amount}) by bank transfer.
+Write the short email a real person sends to let them know: what was paid and when, in your own
+style. ${allowDocuments ? `Optionally attach a remittance advice as a "document" (title "Remittance Advice", the
+invoice reference and amount in a table), as many businesses do.` : ''}
+
+Return JSON: {"body": "email body with greeting and signature"${allowDocuments ? `,
+"document": null or {"format": "pdf", "title": "Remittance Advice", "reference": "...", "date": "...",
+  "table": {"columns": ["Invoice", "Amount"], "rows": [["...", "..."]]}, "totals": {"Total paid": "..."}}` : ''}}`;
+  return chatJSON(openai, system, user, 0.8);
 }
 
 // The customer chasing their own unanswered email.
@@ -350,6 +378,7 @@ module.exports = {
   generateCustomers,
   writeCustomerEmail,
   writeCustomerReply,
+  writeRemittance,
   writeFollowUp,
   writeBackgroundEmail,
   describeImage,

@@ -261,6 +261,7 @@ const CUSTOMER_FIELDS = [
   ['writingStyle', 'Writing style', 'area'],
   ['signature', 'Signature', 'area'],
   ['memory', 'Remembers about the company (one note per line, added to automatically)', 'lines'],
+  ['paymentHabit', 'Pays invoices', 'select', [['', 'Either, at random'], ['prompt', 'Straight away'], ['delayed', 'After a delay']]],
   ['followUps', 'Chases emails that haven\'t been answered (when follow-ups are on in Settings)', 'check'],
 ];
 
@@ -268,6 +269,9 @@ const CUSTOMER_FIELDS = [
 function personCard(fields, c, newLabel) {
   const body = fields.map(([k, label, type, ph]) => {
     // Checkboxes default to on: a missing value means "yes".
+    if (type === 'select') {
+      return `<div><label>${label}</label><select data-f="${k}">${ph.map(([v, l]) => `<option value="${v}"${(c[k] || '') === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`;
+    }
     if (type === 'check') {
       return `<div class="full"><label class="check"><input type="checkbox" data-f="${k}" data-type="check"${c[k] === false ? '' : ' checked'} /> ${label}</label></div>`;
     }
@@ -691,7 +695,7 @@ function kindLabel(m) {
   if (m.direction === 'in') return 'from company';
   return {
     reply: 'reply (AI)', followup: `chase ${m.followUp || ''} (AI)`.replace('  ', ' '), inject: 'inject', manual: 'written by you',
-    ooo: 'out of office', background: 'background', new: 'new (AI)',
+    ooo: 'out of office', background: 'background', new: 'new (AI)', remittance: 'payment sent (AI)', statement: 'bank statement',
   }[m.kind] || 'customer (AI)';
 }
 

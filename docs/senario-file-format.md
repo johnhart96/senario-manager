@@ -65,7 +65,7 @@ Ordered by `position` (the order shown in the app).
 | table | columns |
 |---|---|
 | `employees` | `name`, `email`, `role`, `responsibilities` |
-| `customers` | `name`, `email`, `organisation`, `role`, `relationship`, `personality`, `writing_style`, `signature`, `memory` (JSON array of notes), `follow_ups` (`1`/`0`; missing in files from before 0.5.0, meaning `1`) |
+| `customers` | `name`, `email`, `organisation`, `role`, `relationship`, `personality`, `writing_style`, `signature`, `memory` (JSON array of notes), `follow_ups` (`1`/`0`; missing in files from before 0.5.0, meaning `1`), `payment_habit` (`prompt`, `delayed` or empty for either; 0.6.0) |
 | `parties` | `name`, `email`, `organisation`, `role`, `services`, `personality`, `writing_style`, `signature`, `memory` |
 
 ### `threads`
@@ -120,13 +120,14 @@ Customer/party replies and follow-up chases waiting to be sent.
 | column | notes |
 |---|---|
 | `id` | Job UUID. |
-| `type` | `reply` or `followup`. |
+| `type` | `reply`, `followup` or `payment`. |
 | `customer` | Email of the customer or party who will write. |
 | `thread_id` | Thread it belongs to. |
 | `ref_message_id` | For `reply`: the message being answered. For `followup`: the unanswered message being chased. |
 | `attempt` | Follow-up number (1, 2, …). |
 | `remaining_ms` | Real milliseconds left when saved. |
 | `scenario_ms` | The delay in scenario time (used for wording like "no reply for ~2 days"). |
+| `data` | For `payment`: JSON `{ reference, amount, threadId, replyToId }`, the invoice being paid (amount in minor units). Added in 0.6.0. |
 
 ### `outbox`
 
@@ -144,6 +145,21 @@ subject, body, status, firedAt).
 |---|---|
 | `exercise` | `{ elapsedMs, startedAt }`: the exercise clock, paused |
 | `dkimKeys` | DKIM keys per sender domain (`selector`, `privateKey`, `publicKey`). Lab-only keys, included so DNS records stay valid when a file is moved. |
+| `bankAccount` | The company's bank account: `{ bankName, accountName, sortCode, accountNumber, currency, openingBalance, openedOn }`, `openingBalance` in minor units (pence). Added in 0.6.0. |
+
+### `bank_transactions`
+
+Money in and out of the company's bank account (added in 0.6.0; older files have none).
+
+| column | notes |
+|---|---|
+| `position` | Order added. |
+| `id` | UUID. |
+| `date` | `YYYY-MM-DD`, in the operating year. |
+| `amount` | Minor units (pence, cents): positive is money in, negative money out. |
+| `description` | As shown on the statement, e.g. `BGC BRIGHT FOODS LTD INV-1042`. |
+| `reference`, `invoice` | The invoice reference a customer paid. |
+| `counterparty`, `customer` | Who paid: organisation name and email. |
 
 ### `activity_log`
 

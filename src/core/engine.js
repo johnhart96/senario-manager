@@ -9,6 +9,7 @@ const clock = require('./clock');
 const { compose, mailHeaders, styleFor, rfc2822 } = require('./compose');
 const documents = require('./documents');
 const calendar = require('./calendar');
+const bank = require('./bank');
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const chance = (p) => Math.random() < p;
@@ -607,7 +608,7 @@ class Engine extends EventEmitter {
       meta: { kind: draft.kind, ...(draft.followUpAttempt ? { followUp: draft.followUpAttempt } : {}) },
       headers: draft.headers,
       layout: draft.layout,
-      background: draft.kind === 'background',
+      background: draft.kind === 'background' || draft.kind === 'statement',
       envelopeFrom: draft.envelopeFrom,
     };
     const org = { name: customer.organisation || customer.name, email: customer.email, person: customer.name, year: this.year, now: this.scenarioNow() };
@@ -617,6 +618,10 @@ class Engine extends EventEmitter {
     for (const f of draft.forms || []) {
       const file = await this.filledForm(f, thread0, org).catch((e) => this.log('error', `Could not fill in the form: ${e.message}`));
       if (file) (extra.attachments = extra.attachments || []).push(file);
+    }
+    if (draft.statement) {
+      const st = await bank.statement(this.data.bank, { ...draft.statement, companyName: this.company.name, now: this.scenarioNow() });
+      (extra.attachments = extra.attachments || []).push(st);
     }
     if (draft.meeting) {
       const m = calendar.normaliseMeeting(draft.meeting, this.scenarioNow());
@@ -647,7 +652,7 @@ class Engine extends EventEmitter {
       extra,
     });
     if (draft.remember) this.remember(customer.email, draft.remember);
-    if (draft.kind !== 'background' && draft.kind !== 'ooo') this.setStatus(thread, draft.resolves ? 'resolved' : 'open');
+    if (!['background', 'ooo', 'statement'].includes(draft.kind)) this.setStatus(thread, draft.resolves ? 'resolved' : 'open');
     if (draft.followUp) this.scheduleFollowUp(customer, thread.id, record.messageId, (draft.followUpAttempt || 0) + 1);
     this.store.save();
     return { thread, record };
@@ -1037,7 +1042,8 @@ class Engine extends EventEmitter {
 
   armJob(job) {
     if (!this.running) return;
-    const run = job.type === 'followup' ? () => this.runFollowUp(job) : () => this.runReply(job);
+    const run = job.type === 'followup' ? () => this.runFollowUp(job)
+      : job.type === 'payment' ? () => this.runPayment(job) : () => this.runReply(job);
     const t = setTimeout(run, Math.max(1000, job.due - Date.now()));
     this.replyTimers.set(job.id, t);
   }
@@ -1097,8 +1103,11 @@ class Engine extends EventEmitter {
         now: this.nowText(),
         allowDocuments: s.allowDocuments !== false,
         allowMeetings: s.allowMeetings !== false,
+        canPay: s.bankingEnabled !== false,
       });
       if (this.cancelled(job)) return;
+      // An invoice is paid whether or not they write back about it.
+      if (r.payInvoice && s.bankingEnabled !== false) this.promisePayment(customer, thread, incoming, r.payInvoice);
       if (!r.shouldReply || !r.body) {
         this.setStatus(thread, 'resolved');
         if (r.remember) this.remember(customer.email, r.remember);
@@ -1287,6 +1296,164 @@ class Engine extends EventEmitter {
     return inj;
   }
 
+  // ---------- banking ----------
+  //
+  // A customer who agrees to pay an invoice queues a 'payment' job:
+  //   { type: 'payment', customer, payment: { reference, amount (minor units), threadId, replyToId } }
+  // (no top-level threadId, so ending or removing the conversation doesn't cancel the money).
+
+  promisePayment(customer, thread, incoming, inv) {
+    const amount = bank.toMinor(inv.amount);
+    if (!(amount > 0)) return;
+    const reference = String(inv.reference || '').trim().slice(0, 40);
+    const who = lc(customer.email);
+    const same = (ref) => lc(ref) === lc(reference) && reference;
+    const dup = (this.data.bank.transactions || []).some((t) => t.customer === who && same(t.invoice))
+      || (this.data.pending || []).some((j) => j.type === 'payment' && j.customer === who && same(j.payment.reference));
+    if (dup) return this.log('info', `${customer.name} has already paid (or will pay) ${reference}.`);
+    const s = this.settings.scenario;
+    const habit = customer.paymentHabit === 'prompt' || customer.paymentHabit === 'delayed'
+      ? customer.paymentHabit : chance(0.5) ? 'prompt' : 'delayed';
+    const ms = habit === 'prompt'
+      ? randBetween(Number(s.payPromptMinMin) || 5, Number(s.payPromptMaxMin) || 60) * 60000
+      : randBetween(Number(s.payDelayMinHours) || 4, Number(s.payDelayMaxHours) || 72) * 3600000;
+    const job = this.addJob({ type: 'payment', customer: who, payment: { reference, amount, threadId: thread.id, replyToId: incoming.messageId } }, ms);
+    this.log('info', `${customer.name} will pay ${reference || 'the invoice'} (${bank.money(amount, this.data.bank.account.currency)}) in ${fmtWait(job.due - Date.now())}`);
+    this.emit('bank-changed');
+  }
+
+  async runPayment(job, { now = false } = {}) {
+    if (!this.running && !now) {
+      this.replyTimers.delete(job.id);
+      return;
+    }
+    const customer = this.contactMap().get(job.customer) || { name: job.customer, email: job.customer };
+    const p = job.payment || {};
+    const cur = this.data.bank.account.currency;
+    const payer = customer.organisation || customer.name;
+    this.finishJob(job);
+    this.data.bank.transactions.push({
+      id: crypto.randomUUID(),
+      date: bank.isoDate(this.scenarioNow()),
+      amount: p.amount,
+      description: bank.creditDescription(payer, p.reference, this.year),
+      reference: p.reference,
+      counterparty: payer,
+      customer: job.customer,
+      invoice: p.reference,
+    });
+    this.store.save();
+    this.log('info', `Payment received: ${bank.money(p.amount, cur)} from ${payer}${p.reference ? ` for ${p.reference}` : ''}.`);
+    this.emit('bank-changed');
+    this.emitStatus();
+
+    // Sometimes they say so, in the invoice's thread.
+    const thread = this.data.threads[p.threadId];
+    const incoming = thread && thread.messages.find((m) => m.messageId === p.replyToId);
+    if (!thread || !incoming || !customer.kind || !chance(Number(this.settings.scenario.remittanceChance) || 0)) return;
+    try {
+      const s = this.settings.scenario;
+      const r = await ai.writeRemittance(this.settings.openai, {
+        company: this.aiCompany(), customer, colleagues: this.colleaguesOf(customer), reference: p.reference,
+        amount: bank.money(p.amount, cur), now: this.nowText(), allowDocuments: s.allowDocuments !== false,
+      });
+      if (!r.body) return;
+      await this.submit({
+        kind: 'remittance', sender: customer.email, to: [incoming.from], cc: [],
+        subject: 'Re: ' + baseSubject(incoming.subject), body: r.body,
+        threadId: thread.id, quotedId: incoming.messageId, inReplyTo: incoming.messageId,
+        references: thread.messages.map((m) => m.messageId).slice(-10),
+        followUp: false, resolves: true,
+        document: s.allowDocuments !== false ? r.document : null,
+      });
+    } catch (e) {
+      this.log('error', `Remittance email failed: ${e.message}`);
+    }
+  }
+
+  bankState() {
+    const { account, rows, balance } = bank.ledger(this.data.bank);
+    const contacts = this.contactMap();
+    const expected = (this.data.pending || []).filter((j) => j.type === 'payment').map((j) => {
+      const c = contacts.get(j.customer);
+      return { id: j.id, due: j.due, payer: c ? c.organisation || c.name : j.customer, ...j.payment };
+    }).sort((a, b) => a.due - b.due);
+    return { account, transactions: rows.reverse(), balance, expected, today: bank.isoDate(this.scenarioNow()), running: this.running };
+  }
+
+  setBankAccount(patch) {
+    const a = this.data.bank.account;
+    for (const k of ['bankName', 'accountName', 'sortCode', 'accountNumber', 'currency', 'openedOn']) {
+      if (typeof patch[k] === 'string') a[k] = patch[k].trim();
+    }
+    if (patch.openingBalance !== undefined) a.openingBalance = bank.toMinor(patch.openingBalance) || 0;
+    this.store.save();
+    this.emit('bank-changed');
+    return this.bankState();
+  }
+
+  // A manual entry: amount in major units, positive in, negative out.
+  addTransaction({ date, description, amount }) {
+    const minor = bank.toMinor(amount);
+    if (!minor) throw new Error('Enter an amount: positive for money in, negative for money out.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) throw new Error('Enter a date.');
+    this.data.bank.transactions.push({ id: crypto.randomUUID(), date, amount: minor, description: String(description || '').trim().slice(0, 60) || (minor > 0 ? 'CREDIT' : 'DEBIT') });
+    this.store.save();
+    this.emit('bank-changed');
+    return this.bankState();
+  }
+
+  removeTransaction(id) {
+    this.data.bank.transactions = this.data.bank.transactions.filter((t) => t.id !== id);
+    this.store.save();
+    this.emit('bank-changed');
+    return this.bankState();
+  }
+
+  async payNow(jobId) {
+    const job = (this.data.pending || []).find((j) => j.id === jobId && j.type === 'payment');
+    if (!job) throw new Error('That payment has already been made or cancelled.');
+    await this.runPayment(job, { now: true });
+    return this.bankState();
+  }
+
+  cancelPayment(jobId) {
+    const job = (this.data.pending || []).find((j) => j.id === jobId && j.type === 'payment');
+    if (job) {
+      this.finishJob(job);
+      this.log('info', `Cancelled the payment of ${job.payment.reference || 'an invoice'}.`);
+    }
+    this.emit('bank-changed');
+    this.emitStatus();
+    return this.bankState();
+  }
+
+  // Emails a PDF statement for [from, to] to employees, from the bank.
+  async sendStatement({ to, from, until }) {
+    const staff = this.employeeMap();
+    const rcpt = [].concat(to || []).map(lc).filter((e) => staff.has(e));
+    if (!rcpt.length) throw new Error('Choose who should receive the statement.');
+    if (!(from <= until)) throw new Error('The statement period is the wrong way round.');
+    const a = this.data.bank.account;
+    const slug = String(a.bankName || 'bank').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || 'bank';
+    const tld = String(this.settings.scenario.customerTld || 'local').replace(/^\./, '');
+    const last4 = String(a.accountNumber).slice(-4);
+    await this.submit({
+      kind: 'statement',
+      senderInline: { name: a.bankName, email: `statements@${slug}.${tld}`, organisation: a.bankName, kind: 'background' },
+      to: rcpt,
+      cc: [],
+      subject: `Your statement for account ending ${last4}`,
+      body: `Dear customer,\n\nYour statement for account ending ${last4}, covering ${from} to ${until}, is attached.\n\nThis is an automated message, please do not reply.\n\n${a.bankName}`,
+      layout: 'notification',
+      headers: { 'Auto-Submitted': 'auto-generated', 'X-Auto-Response-Suppress': 'All' },
+      statement: { from, to: until },
+      followUp: false,
+      skipReview: true,
+    });
+    this.log('info', `Bank statement (${from} to ${until}) emailed to ${rcpt.join(', ')}.`);
+  }
+
   // ---------- manual actions ----------
 
   async sendNow(customerEmail) {
@@ -1355,6 +1522,7 @@ class Engine extends EventEmitter {
     for (const t of this.replyTimers.values()) clearTimeout(t);
     this.replyTimers.clear();
     this.store.resetConversations();
+    this.resumePendingReplies(); // promised payments survive
     this.log('info', 'Conversation history cleared.');
     this.emit('outbox-changed');
     this.emitStatus();

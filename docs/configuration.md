@@ -85,6 +85,18 @@ Changing these settings, or the mail server address, rebinds it immediately.
 |---|---|---|
 | Hold AI-written emails for review | off | New emails, replies and chases wait in the Outbox until sent or discarded. Also stored as `scenario.reviewBeforeSend`. |
 
+## Banking
+
+| Setting | Default | Description |
+|---|---|---|
+| Customers pay invoices your employees email them | on | Customers agree to pay invoices in their replies and the money arrives in the [bank account](user-guide.md#bank). |
+| "Straight away" payers: after … to … (min) | `5` – `60` | When customers who pay straight away pay *(scenario time)*. |
+| "After a delay" payers: after … to … (hours) | `4` – `72` | When customers who pay after a delay pay *(scenario time)*. |
+| Remittance email chance (0–1) | `0.5` | Chance that a customer emails to say they've paid, often with a remittance advice. |
+
+Each customer's habit (*Straight away*, *After a delay* or *Either, at random*) is set on the
+Customers tab. The bank account itself is set on the **Bank** tab and saved with the scenario.
+
 ## Updates
 
 | Setting | Default | Description |

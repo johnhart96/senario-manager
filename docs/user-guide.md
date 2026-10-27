@@ -31,11 +31,11 @@ The sidebar is always visible. From top to bottom:
 
 - **File:** the open `.senario` file, auto-save status, and **New / Open / Save / Save as**.
 - **Tabs:** set-up tabs (Company, Customers, Parties, Injects, Settings), then run-time tabs
-  (Activity, Conversations, Outbox, Report). Outbox shows a count of emails waiting for review.
+  (Activity, Conversations, Outbox, Bank, Report). Outbox shows a count of emails waiting for review.
 - **Scenario date:** shown when the company has an [operating year](#operating-year).
 - **Listening:** whether the reply listener is up, and on which address and port.
 - **Running / Stopped:** the scenario state, the [exercise clock](#injects) (`T+1:36`), the time
-  of the next new email, and how many replies and chases are queued.
+  of the next new email, and how many replies, chases and payments are queued.
 - **Customer pace:** the [pace slider](#pace).
 - **Start / Stop scenario** (green / red).
 
@@ -93,6 +93,8 @@ Customers are the people who start conversations. They're played by OpenAI.
   domain, such as a buyer and their manager. See [colleagues](#colleagues-and-escalation).
 - **Remembers about the company** is the customer's [memory](#memory) of earlier dealings. It's
   filled in automatically as conversations happen, and you can edit it.
+- **Pays invoices** sets how this customer pays the invoices your employees send them:
+  *Straight away*, *After a delay*, or *Either, at random* (the default). See [Bank](#bank).
 - **Chases emails that haven't been answered** lets you stop one customer [chasing](#follow-ups)
   while the others still do. It's on for every customer unless you untick it.
 - Click **Save customers** after editing.
@@ -263,6 +265,44 @@ background mail are never held.
 **Write an email** lets you send a message yourself as any customer or party: start a new
 conversation, or reply in an existing one, quoted like a normal reply. It always goes
 straight out. Tick *Waiting for an answer* if the sender should chase it.
+
+## Bank
+
+![Bank tab](images/bank.png)
+
+The company has a bank account, and customers pay the invoices your employees send them.
+
+1. An employee emails a customer an invoice, in the email or as an attachment (PDF, Word or
+   Excel).
+2. In their reply, the customer agrees to pay it, or doesn't if it's wrong, not theirs or
+   disputed. Quotes and estimates aren't paid.
+3. The payment appears under **Expected payments** and arrives later:
+   - *Straight away* payers: within minutes (5–60 by default).
+   - *After a delay* payers: hours or days later (4–72 hours by default).
+   - Each customer's habit is set on the [Customers](#customers) tab. *Either, at random* picks
+     one per invoice.
+4. When it arrives, it's added to **Transactions** as a credit like `BGC BRIGHT FOODS LTD INV-1042`
+   (`FPI` for Faster Payments from 2008). Sometimes (half the time by default) the customer also
+   emails to say they've paid, in the invoice's conversation, often with a remittance advice
+   attached.
+
+The same invoice reference from the same customer is only ever paid once. Times are business
+time, so the [pace](#pace) speeds them up, and payments only arrive while the scenario is
+running.
+
+- **Pay now** makes an expected payment arrive straight away; **Cancel** stops it.
+- **Transactions** lists everything, newest first, with a running balance. Add money in or out
+  yourself (rent, salaries, direct debits) with the row at the top, or remove an entry with ✕.
+- **Email a statement** sends a PDF bank statement for the dates you choose to an employee, from
+  the bank (`statements@<bank>.<customer TLD>`). It has the balance brought forward, every
+  transaction with a running balance, money in and out, and the closing balance. Dates are in the
+  operating year.
+- **Account details** sets the bank's name, the account name, sort code, account number,
+  currency and opening balance.
+
+Promised payments and the account are kept when you clear the conversation history, and are saved
+in `.senario` files. Switch banking off, or change the timings, under
+[Settings → Banking](configuration.md#banking).
 
 ## Report
 

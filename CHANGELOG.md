@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-27
+
+### Added
+
+- **Virtual banking:** a new **Bank** tab with the company's account. When an employee emails a
+  customer an invoice, the customer agrees to pay it in their reply (unless it's wrong) and the
+  money arrives straight away or after a delay, by customer (*Pays invoices* on the Customers
+  tab). Payers sometimes email a remittance advice. Add your own transactions, Pay now or Cancel
+  expected payments, and email a PDF bank statement for any period to an employee. Settings →
+  Banking sets the timings. Saved in `.senario` files.
+
+### Changed
+
+- Slightly tighter sidebar spacing, so the extra **Bank** tab fits without scrolling.
+
 ## [0.5.0] - 2026-10-27
 
 ### Added
@@ -117,7 +132,8 @@ First public release.
 - **Installers** for Windows (NSIS, portable), macOS (dmg, zip) and Linux (AppImage, deb, rpm)
   via electron-builder. `.senario` files open in the app when double-clicked.
 
-[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/johnhart96/senario-manager/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/johnhart96/senario-manager/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/johnhart96/senario-manager/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/johnhart96/senario-manager/compare/v0.2.0...v0.3.0

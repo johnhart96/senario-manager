@@ -143,6 +143,16 @@ the customer still answers it.
 | *type not supported* | Archives (`.zip`), executables and other formats aren't read. |
 | *too large* | Over 25 MB. |
 | *could not be read* | Corrupt, password-protected or malformed. Hover for the error. |
+| No *form with N blanks* on a form you sent | The app found nothing to fill in: a scanned or flat PDF, an old `.doc`, a form over 1 MB, or blanks it doesn't recognise (see [Forms](user-guide.md#forms)). The customer sends back a completed copy as a new document instead, if *Customers can attach documents* is on. |
+
+## A customer didn't pay
+
+| Activity / Bank tab | Meaning |
+|---|---|
+| Nothing under **Expected payments** after their reply | They didn't accept the invoice: wrong, not theirs, disputed, or not clearly an invoice (quotes aren't paid). Their reply usually says why. Check *Settings → Banking* is on. |
+| *"… has already paid (or will pay) INV-…"* | That invoice reference was already paid or promised by this customer. Use a new reference for a new invoice. |
+| Expected, but never arrives | Payments only arrive while the scenario is running. *After a delay* payers can take days of business time: raise the [pace](user-guide.md#pace) or click **Pay now**. |
+| Statement doesn't arrive | It goes through the scenario mail server like any other email, from `statements@<bank>.<customer TLD>`. See [Customer emails don't arrive](#customer-emails-dont-arrive). |
 
 ## Files and saving
 
