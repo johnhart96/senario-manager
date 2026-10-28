@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-28
+
+### Fixed
+
+- Payments from customers who pay after a delay are dated on the scenario day they're due, so a
+  payment due days later no longer lands on today's date when the pace is speeded up. *Pay now*,
+  and payments held up while the scenario was stopped, are dated today.
+
 ## [0.7.0] - 2026-10-28
 
 ### Added
@@ -143,7 +151,8 @@ First public release.
 - **Installers** for Windows (NSIS, portable), macOS (dmg, zip) and Linux (AppImage, deb, rpm)
   via electron-builder. `.senario` files open in the app when double-clicked.
 
-[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/johnhart96/senario-manager/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/johnhart96/senario-manager/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/johnhart96/senario-manager/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/johnhart96/senario-manager/compare/v0.4.0...v0.5.0
