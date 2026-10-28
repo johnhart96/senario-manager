@@ -145,6 +145,18 @@ the customer still answers it.
 | *could not be read* | Corrupt, password-protected or malformed. Hover for the error. |
 | No *form with N blanks* on a form you sent | The app found nothing to fill in: a scanned or flat PDF, an old `.doc`, a form over 1 MB, or blanks it doesn't recognise (see [Forms](user-guide.md#forms)). The customer sends back a completed copy as a new document instead, if *Customers can attach documents* is on. |
 
+## Online banking
+
+| Bank tab shows / browser says | Fix |
+|---|---|
+| *No permission to listen on port 80* | Linux reserves ports below 1024. Use the [port 25 setting](installation.md#allow-port-25-linux-only) (it covers 80 too), or choose a port such as 8080. |
+| *Port 80 is already in use* | Another web server (Apache, nginx, IIS) is running on this machine. Stop it or choose another port. |
+| The page doesn't load from another machine | Check the address shown on the Bank tab, that *Listen address* isn't `127.0.0.1`, and that the [firewall](installation.md#firewall) allows port 80. |
+| *The username or password is incorrect* | Usernames ignore capitals; passwords don't. Set a new password by adding the user again with the same username. |
+| *Too many failed attempts* | 5 wrong passwords lock that address out for a minute. Wait, then try again. |
+| *Your session has ended* | 15 minutes without activity logs the user out. Log in again. |
+| *Insufficient funds* | Payments can't go beyond the balance plus any arranged overdraft (Bank tab → Account details). |
+
 ## A customer didn't pay
 
 | Activity / Bank tab | Meaning |

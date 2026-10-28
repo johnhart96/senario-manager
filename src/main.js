@@ -288,6 +288,14 @@ function wire() {
   handle('bank:payNow', (id) => engine.payNow(id));
   handle('bank:cancelPayment', (id) => engine.cancelPayment(id));
   handle('bank:sendStatement', (opts) => engine.sendStatement(opts || {}));
+  handle('bank:setOnline', (opts) => engine.setOnlineBanking(opts || {}));
+  handle('bank:addUser', (u) => engine.addBankUser(u || {}));
+  handle('bank:removeUser', (username) => engine.removeBankUser(username));
+  handle('bank:openSite', () => {
+    const o = store.data.bank.online;
+    const host = o.bindAddress && o.bindAddress !== '0.0.0.0' ? o.bindAddress : '127.0.0.1';
+    shell.openExternal(`http://${host}${Number(o.port) === 80 ? '' : `:${o.port}`}/`);
+  });
   handle('threads:remove', (id) => engine.removeThread(id));
 
   handle('test:openai', () => ai.testConnection(store.settings.openai));
@@ -536,6 +544,7 @@ app.whenReady().then(() => {
   updateTitle();
   // Start listening for replies straight away; errors are shown in the UI.
   if (store.settings.mail.host) engine.openListener().catch(() => {});
+  engine.openWebBank().catch(() => {});
   if (pendingOpen) win.webContents.once('did-finish-load', () => openFromOs(pendingOpen));
   updater.init();
   app.on('activate', () => {

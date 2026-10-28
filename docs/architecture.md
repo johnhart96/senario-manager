@@ -32,7 +32,8 @@ src/
     ├── forms.js            Finds the blanks in PDF / Word / Excel forms and fills them in
     ├── calendar.js         iCalendar meeting invitations and responses
     ├── report.js           Trainee performance report (metrics + HTML)
-    ├── bank.js             Bank account ledger, money formatting and PDF statements
+    ├── bank.js             Bank account ledger, money formatting, password hashing and PDF statements
+    ├── webbank.js          The online banking website (node:http, server-rendered, no client JS)
     ├── templates.js        Lists and loads src/templates/*.json
     ├── mail.js             Outbound SMTP and the inbound SMTP listener, locked to one server
     ├── attachments.js      Attachment type detection; runs the parser worker; prompt formatting
@@ -142,6 +143,23 @@ thread as a resolving reply. `sendStatement()` submits a `statement` draft from 
 sender. `sendDraft()` renders `bank.statement()` as its PDF attachment, and the thread is marked
 background.
 
+### Online banking
+
+`WebBank` (`src/core/webbank.js`) is a `node:http` server the engine starts like the reply
+listener (`openWebBank()` / `closeWebBank()`, restarted when a scenario is loaded, closed on
+shutdown) when `data.bank.online.enabled` is set. It never touches `data` directly: the engine
+gives it `state()` (= `bankState()`), `verify()`, `pay()` (= `makePayment()`, which adds a
+negative transaction with the payee details), `statement()` and `log()`.
+
+Pages are rendered on the server and send no scripts, with a strict CSP (`default-src 'none'`,
+`style-src 'self'` for `/style.css`), `X-Frame-Options: DENY` and `no-store`. Sessions are 32
+random bytes in an `HttpOnly; SameSite=Strict` cookie, held in memory, expiring after 15 idle
+minutes. Every POST except `/login` must carry the session's CSRF token. A payment is validated,
+shown for review with a one-time token, and validated again on confirm. Failed logins are
+counted per remote address (5, then a 60 s lock), and `verify()` hashes even for unknown
+usernames. Request bodies are capped at 16 KB. CSV exports prefix cells starting with
+`= + - @` so spreadsheets don't run them as formulas.
+
 ### The exercise clock and injects
 
 `data.exercise = { elapsedMs, runningSince }` measures scenario time since the exercise started:
@@ -250,6 +268,7 @@ Changes must keep these true. The tests check them.
 | `exercises.test.js` | One conversation at a time, ending and removing conversations, per-customer follow-ups, forms sent back filled in, cooldown after a resolved conversation, review queue, manual compose, mail-program headers, generated documents, meeting invitations and responses, colleagues and escalation, memory, out-of-office, background mail, injects on the exercise clock, the report, DKIM, templates, `.senario` v2 |
 | `html-email.test.js` | HTML composition: escaping, lists, era fonts, both quoting styles, multipart/alternative over SMTP, plain-text mode |
 | `attachments.test.js` | Every supported format, plus corrupt and unsupported files and inline logos |
+| `webbank.test.js` | Online banking over HTTP: login, sessions, CSRF, payments (review → confirm, once), validation, overdraft, escaping, search, CSV/PDF statements, logout, lockout, port clashes, persistence |
 | `banking.test.js` | Invoices paid straight away and after a delay, remittance emails, duplicates, Pay now / Cancel, manual transactions, the emailed PDF statement, banking off, persistence |
 | `forms.test.js` | Finding and filling the blanks in PDF, Word (cells, lines, content controls) and Excel (`.xlsx`, `.xls`) forms |
 | `senario-file.test.js` | Save/load round trip, credentials, overwrite, invalid files |

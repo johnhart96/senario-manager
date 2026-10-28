@@ -88,8 +88,9 @@ sudo sysctl --system
 ```
 
 This lets any program on the machine use ports 25–1023, which is normally fine on a dedicated
-lab machine. Alternatively, choose a listener port of 1024 or higher in Settings and point the
-mail server's routes at that port.
+lab machine. It also covers port 80 for [online banking](user-guide.md#online-banking).
+Alternatively, choose a listener port of 1024 or higher in Settings and point the mail server's
+routes at that port (and an online banking port above 1024, such as 8080).
 
 ### Firewall
 
@@ -105,6 +106,9 @@ For firewalld:
 sudo firewall-cmd --permanent --add-rich-rule='rule family=ipv4 source address=<mail-server-ip> port port=25 protocol=tcp accept'
 sudo firewall-cmd --reload
 ```
+
+If you run [online banking](user-guide.md#online-banking), allow port 80 from the lab network
+that trainees use, for example `sudo ufw allow from 192.168.1.0/24 to any port 80 proto tcp`.
 
 ## Running from source
 

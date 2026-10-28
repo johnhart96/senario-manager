@@ -10,6 +10,8 @@ const path = require('path');
 const { app, BrowserWindow } = require('electron');
 
 const OUT = path.join(__dirname, '..', 'docs', 'images');
+const { hashPassword } = require('../src/core/bank');
+const WEB_PORT = 2682; // the demo's online banking, on a high port and localhost only
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'senario-shots-'));
 // The switch stops main.js pinning the real data folder; setPath points Electron at the
 // throwaway profile. Both are needed so your own scenario is never read or written.
@@ -105,6 +107,7 @@ const seed = {
       { id: 'b5', date: '2005-10-14', amount: -942000, description: 'BACS SALARIES OCT' },
       { id: 'b6', date: '2005-10-21', amount: 305265, description: 'BGC RIVERSIDE THEATRE INV-2196', customer: customers[0].email, invoice: 'INV-2196' },
     ],
+    online: { enabled: true, bindAddress: '127.0.0.1', port: WEB_PORT, users: [{ username: 'priya', name: 'Priya Shah', ...hashPassword('demo-password') }] },
   },
   pending: [
     { id: 'j1', type: 'reply', customer: customers[0].email, threadId: 't1', replyToId: '<s1@northwind.local>', due: now + 9 * 60000, scenarioMs: 3600000 },
@@ -165,6 +168,23 @@ app.whenReady().then(async () => {
     fs.writeFileSync(path.join(OUT, `${name}.png`), img.toPNG());
     console.log(`docs/images/${name}.png  ${img.getSize().width}x${img.getSize().height}`);
   }
+  // The online banking website, in its own window.
+  const site = new BrowserWindow({ width: 1280, height: 860 });
+  const step = async (js) => { await site.webContents.executeJavaScript(js); await wait(700); };
+  const shot = async (name) => {
+    const img = await site.webContents.capturePage();
+    fs.writeFileSync(path.join(OUT, `${name}.png`), img.toPNG());
+    console.log(`docs/images/${name}.png  ${img.getSize().width}x${img.getSize().height}`);
+  };
+  await site.loadURL(`http://127.0.0.1:${WEB_PORT}/login`);
+  await wait(500);
+  await step(`document.querySelector('#u').value = 'priya'; document.querySelector('#p').value = 'demo-password'; setTimeout(() => document.querySelector('form').submit())`);
+  await shot('online-banking');
+  await step(`setTimeout(() => { location.href = '/pay'; })`);
+  await step(`Object.entries({ payee: 'Strand Lighting Ltd', sortCode: '30-94-12', accountNumber: '41883920', reference: 'INV S-55120', amount: '2,450.00' })
+      .forEach(([k, v]) => { document.querySelector('#' + k).value = v; }); setTimeout(() => document.querySelector('main form').submit())`);
+  await shot('online-payment');
+  site.destroy();
   fs.rmSync(profile, { recursive: true, force: true });
   app.exit(0);
 });

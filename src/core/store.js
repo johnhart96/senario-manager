@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { DEFAULT_ACCOUNT } = require('./bank');
+const { DEFAULT_ACCOUNT, DEFAULT_ONLINE } = require('./bank');
 
 // Fields holding credentials. They are encrypted at rest with Electron's
 // safeStorage when the OS keyring is available.
@@ -96,7 +96,7 @@ const DEFAULT_DATA = {
   injects: [], // scripted exercise events
   exercise: { elapsedMs: 0, runningSince: null, startedAt: null }, // exercise clock (scenario time)
   dkimKeys: {}, // domain -> { selector, privateKey, publicKey }
-  bank: { account: { ...DEFAULT_ACCOUNT }, transactions: [] }, // see core/bank.js
+  bank: { account: { ...DEFAULT_ACCOUNT }, transactions: [], online: { ...DEFAULT_ONLINE } }, // see core/bank.js
   log: [], // activity log: { time, level, message }
   // App-level state, never written into .senario files.
   appState: { currentFile: null, includeSecrets: false, autoSave: true, autoUpdate: true },

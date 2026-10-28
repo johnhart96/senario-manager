@@ -145,7 +145,8 @@ subject, body, status, firedAt).
 |---|---|
 | `exercise` | `{ elapsedMs, startedAt }`: the exercise clock, paused |
 | `dkimKeys` | DKIM keys per sender domain (`selector`, `privateKey`, `publicKey`). Lab-only keys, included so DNS records stay valid when a file is moved. |
-| `bankAccount` | The company's bank account: `{ bankName, accountName, sortCode, accountNumber, currency, openingBalance, openedOn }`, `openingBalance` in minor units (pence). Added in 0.6.0. |
+| `bankAccount` | The company's bank account: `{ bankName, accountName, sortCode, accountNumber, currency, openingBalance, openedOn, overdraftLimit }`, amounts in minor units (pence). Added in 0.6.0; `overdraftLimit` in 0.7.0. |
+| `bankOnline` | Online banking: `{ enabled, bindAddress, port, users: [{ username, name, salt, hash }] }`. `hash` is `scrypt(password, salt)` (32 bytes, hex). Kept even in files saved without credentials, since the site needs it; the passwords themselves are never stored. Added in 0.7.0. |
 
 ### `bank_transactions`
 
@@ -160,6 +161,7 @@ Money in and out of the company's bank account (added in 0.6.0; older files have
 | `description` | As shown on the statement, e.g. `BGC BRIGHT FOODS LTD INV-1042`. |
 | `reference`, `invoice` | The invoice reference a customer paid. |
 | `counterparty`, `customer` | Who paid: organisation name and email. |
+| `meta` | JSON extras. For payments made in online banking: `{ payee, sortCode, accountNumber, by }` (`by` is the online banking username). Added in 0.7.0. |
 
 ### `activity_log`
 

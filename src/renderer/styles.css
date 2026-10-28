@@ -314,6 +314,9 @@ select.small-select { width: auto; min-width: 0; padding: 4px 6px; }
 .row.tight { gap: 8px; margin-top: 0; flex-wrap: nowrap; align-items: flex-end; }
 .row.tight > div { flex: 1; }
 .tx-add { margin-bottom: 12px; }
+.sub-h { font-size: 13px; margin: 18px 0 6px; color: var(--muted); font-weight: 500; }
+.ok-text { color: var(--ok); }
+.err-text { color: var(--err); }
 .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; min-width: 120px; }
 .stat .v { font-size: 20px; font-weight: 600; }
 .stat .l { color: var(--muted); font-size: 12px; }

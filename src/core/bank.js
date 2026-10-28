@@ -19,7 +19,13 @@ const DEFAULT_ACCOUNT = {
   currency: 'GBP',
   openingBalance: 0,
   openedOn: '',
+  overdraftLimit: 0, // arranged overdraft, minor units
 };
+
+// Online banking (core/webbank.js): off until switched on; users' passwords are scrypt hashes.
+const DEFAULT_ONLINE = { enabled: false, bindAddress: '0.0.0.0', port: 80, users: [] };
+
+const digits = (s) => String(s || '').replace(/\D/g, '');
 
 const toMinor = (n) => Math.round(Number(String(n).replace(/[^\d.-]/g, '')) * 100);
 
@@ -54,6 +60,24 @@ function ledger(bank) {
 function creditDescription(payer, reference, year) {
   const code = year && year < FASTER_PAYMENTS_YEAR ? 'BGC' : 'FPI';
   return `${code} ${String(payer || '').toUpperCase().slice(0, 30)}${reference ? ` ${String(reference).toUpperCase().slice(0, 18)}` : ''}`.trim();
+}
+
+// "BP ACME SUPPLIES INV 2231": an online payment out, by era.
+function debitDescription(payee, reference, year) {
+  const code = year && year < FASTER_PAYMENTS_YEAR ? 'BP' : 'FPO';
+  return `${code} ${String(payee || '').toUpperCase().slice(0, 30)}${reference ? ` ${String(reference).toUpperCase().slice(0, 18)}` : ''}`.trim();
+}
+
+function hashPassword(password, salt = require('crypto').randomBytes(16).toString('hex')) {
+  return { salt, hash: require('crypto').scryptSync(String(password), salt, 32).toString('hex') };
+}
+
+function checkPassword(user, password) {
+  const crypto = require('crypto');
+  if (!user || !user.salt || !user.hash) return false;
+  const a = Buffer.from(hashPassword(password, user.salt).hash, 'hex');
+  const b = Buffer.from(user.hash, 'hex');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 const winAnsi = (t) => String(t)
@@ -158,4 +182,4 @@ async function statement(bank, { from, to, companyName, now }) {
   };
 }
 
-module.exports = { DEFAULT_ACCOUNT, money, toMinor, ledger, creditDescription, statement, isoDate };
+module.exports = { DEFAULT_ACCOUNT, DEFAULT_ONLINE, money, toMinor, digits, ledger, creditDescription, debitDescription, hashPassword, checkPassword, statement, isoDate };

@@ -24,7 +24,7 @@ async function loadBank() {
   for (const el of $$('[data-bank]')) {
     const k = el.dataset.bank;
     if (document.activeElement === el) continue;
-    el.value = k === 'openingBalance' ? ((Number(a.openingBalance) || 0) / 100).toFixed(2) : a[k] || '';
+    el.value = k === 'openingBalance' || k === 'overdraftLimit' ? ((Number(a[k]) || 0) / 100).toFixed(2) : a[k] || '';
   }
   $('#bankBalance').textContent = fmtMoney(b.balance);
   $('#bankBalance').classList.toggle('neg', b.balance < 0);
@@ -42,6 +42,22 @@ async function loadBank() {
   if (!$('#stmtFrom').value) $('#stmtFrom').value = `${b.today.slice(0, 8)}01`;
   if (!$('#stmtUntil').value) $('#stmtUntil').value = b.today;
   if (!$('#txDate').value) $('#txDate').value = b.today;
+
+  // Online banking.
+  const o = b.online;
+  if (document.activeElement !== $('#webBind')) $('#webBind').value = o.bindAddress || '0.0.0.0';
+  if (document.activeElement !== $('#webPort')) $('#webPort').value = o.port || 80;
+  $('#webEnabled').checked = o.enabled;
+  $('#openWeb').disabled = !o.webRunning;
+  const ips = typeof localIps !== 'undefined' && localIps.length ? localIps : ['<this machine>'];
+  const urls = (o.bindAddress && o.bindAddress !== '0.0.0.0' ? [o.bindAddress] : ips).map((ip) => `http://${ip}${Number(o.port) === 80 ? '' : `:${o.port}`}/`);
+  $('#webStatus').innerHTML = !o.enabled ? '<span class="muted">Off.</span>'
+    : o.webRunning ? `<span class="ok-text">● Running</span> at ${urls.map(esc).join(', ')}${o.users.length ? '' : ' · <span class="err-text">add a user so someone can log in</span>'}`
+      : `<span class="err-text">● Not running: ${esc(o.webError || 'starting…')}</span>`;
+  $('#webUsers').innerHTML = o.users.length
+    ? `<table class="rtable"><thead><tr><th>Name</th><th>Username</th><th></th></tr></thead><tbody>${o.users.map((u) => `<tr>
+        <td>${esc(u.name || '')}</td><td>${esc(u.username)}</td><td class="n"><button class="link danger" data-web-remove="${esc(u.username)}">Remove</button></td></tr>`).join('')}</tbody></table>`
+    : '<p class="muted small">No users yet.</p>';
 
   $('#bankExpected').innerHTML = b.expected.length
     ? `<table class="rtable"><thead><tr><th>From</th><th>Invoice</th><th class="n">Amount</th><th>Due in</th><th></th></tr></thead><tbody>${b.expected.map((p) => `<tr>
@@ -85,7 +101,34 @@ $('#sendStatement').addEventListener('click', (e) =>
   })
 );
 
+$('#saveWeb').addEventListener('click', (e) =>
+  busy(e.target, async () => {
+    const st = await window.api.setOnlineBanking({ enabled: $('#webEnabled').checked, bindAddress: $('#webBind').value, port: $('#webPort').value });
+    await loadBank();
+    if (st.online.enabled && st.online.webRunning) toast('Online banking is running');
+    else if (st.online.enabled) toast(st.online.webError || 'Online banking could not start', true);
+    else toast('Online banking is off');
+  })
+);
+
+$('#openWeb').addEventListener('click', () => window.api.openBankSite());
+
+$('#addWebUser').addEventListener('click', (e) =>
+  busy(e.target, async () => {
+    await window.api.addBankUser({ name: $('#webUserName').value, username: $('#webUserLogin').value, password: $('#webUserPass').value });
+    $('#webUserName').value = '';
+    $('#webUserLogin').value = '';
+    $('#webUserPass').value = '';
+    await loadBank();
+    toast('User saved');
+  })
+);
+
 $('#tab-bank').addEventListener('click', (e) => {
+  const rmUser = e.target.closest('[data-web-remove]');
+  if (rmUser && confirm(`Remove the online banking user "${rmUser.dataset.webRemove}"?`)) {
+    busy(rmUser, async () => { await window.api.removeBankUser(rmUser.dataset.webRemove); await loadBank(); });
+  }
   const now = e.target.closest('[data-pay-now]');
   const cancel = e.target.closest('[data-pay-cancel]');
   const remove = e.target.closest('[data-tx-remove]');

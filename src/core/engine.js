@@ -10,6 +10,7 @@ const { compose, mailHeaders, styleFor, rfc2822 } = require('./compose');
 const documents = require('./documents');
 const calendar = require('./calendar');
 const bank = require('./bank');
+const { WebBank } = require('./webbank');
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const chance = (p) => Math.random() < p;
@@ -192,6 +193,7 @@ class Engine extends EventEmitter {
       threads: Object.keys(this.data.threads).length,
       listening: this.listener ? `${l.bindAddress}:${l.port}` : null,
       listenerError: this.listenerError || null,
+      webBank: this.webBankStatus(),
       allowedSources: this.listener ? this.listener.allowed : [],
       pace: this.pace,
       operatingYear: this.year,
@@ -293,6 +295,7 @@ class Engine extends EventEmitter {
   async shutdown() {
     await this.stop();
     await this.closeListener();
+    await this.closeWebBank();
   }
 
   // 1 = real business time; higher values compress every delay by that factor.
@@ -1373,12 +1376,18 @@ class Engine extends EventEmitter {
 
   bankState() {
     const { account, rows, balance } = bank.ledger(this.data.bank);
+    const online = this.data.bank.online;
     const contacts = this.contactMap();
     const expected = (this.data.pending || []).filter((j) => j.type === 'payment').map((j) => {
       const c = contacts.get(j.customer);
       return { id: j.id, due: j.due, payer: c ? c.organisation || c.name : j.customer, ...j.payment };
     }).sort((a, b) => a.due - b.due);
-    return { account, transactions: rows.reverse(), balance, expected, today: bank.isoDate(this.scenarioNow()), running: this.running };
+    return {
+      account, transactions: rows.reverse(), balance, available: balance + (Number(account.overdraftLimit) || 0), expected,
+      today: bank.isoDate(this.scenarioNow()), running: this.running, companyName: this.company.name,
+      online: { enabled: !!online.enabled, bindAddress: online.bindAddress, port: online.port,
+        users: (online.users || []).map((u) => ({ username: u.username, name: u.name })), ...this.webBankStatus() },
+    };
   }
 
   setBankAccount(patch) {
@@ -1387,6 +1396,7 @@ class Engine extends EventEmitter {
       if (typeof patch[k] === 'string') a[k] = patch[k].trim();
     }
     if (patch.openingBalance !== undefined) a.openingBalance = bank.toMinor(patch.openingBalance) || 0;
+    if (patch.overdraftLimit !== undefined) a.overdraftLimit = Math.max(0, bank.toMinor(patch.overdraftLimit) || 0);
     this.store.save();
     this.emit('bank-changed');
     return this.bankState();
@@ -1426,6 +1436,106 @@ class Engine extends EventEmitter {
     this.emit('bank-changed');
     this.emitStatus();
     return this.bankState();
+  }
+
+  // ---------- online banking (core/webbank.js) ----------
+
+  webBankStatus() {
+    return { webRunning: !!(this.webBank && this.webBank.server), webError: this.webBankError || null };
+  }
+
+  async openWebBank() {
+    const o = this.data.bank.online;
+    if (this.webBank || !o.enabled) return;
+    const web = new WebBank({
+      state: () => this.bankState(),
+      verify: (username, password) => {
+        const u = (this.data.bank.online.users || []).find((x) => lc(x.username) === lc(username));
+        // Hash even for unknown users, so a wrong username takes as long as a wrong password.
+        const ok = bank.checkPassword(u || { salt: 'x', hash: '00' }, password);
+        return u && ok ? u : null;
+      },
+      pay: (p) => this.makePayment(p),
+      statement: (from, to) => bank.statement(this.data.bank, { from, to, companyName: this.company.name, now: this.scenarioNow() }),
+      log: (level, msg) => this.log(level, msg),
+    });
+    try {
+      await web.start({ port: Number(o.port) || 80, bindAddress: o.bindAddress || '0.0.0.0' });
+      this.webBank = web;
+      this.webBankError = null;
+      this.log('info', `Online banking running on ${o.bindAddress}:${o.port}.`);
+    } catch (e) {
+      this.webBankError = e.message;
+      this.log('error', 'Online banking not running: ' + e.message);
+      throw e;
+    } finally {
+      this.emitStatus();
+      this.emit('bank-changed');
+    }
+  }
+
+  async closeWebBank() {
+    const web = this.webBank;
+    this.webBank = null;
+    if (web) await web.stop();
+    this.emitStatus();
+  }
+
+  async restartWebBank() {
+    await this.closeWebBank();
+    this.webBankError = null;
+    await this.openWebBank();
+  }
+
+  async setOnlineBanking({ enabled, bindAddress, port }) {
+    const o = this.data.bank.online;
+    const p = Number(port);
+    if (!Number.isInteger(p) || p < 1 || p > 65535) throw new Error('Enter a port between 1 and 65535.');
+    Object.assign(o, { enabled: !!enabled, bindAddress: String(bindAddress || '0.0.0.0').trim() || '0.0.0.0', port: p });
+    this.store.save();
+    if (o.enabled && !(o.users || []).length) this.log('info', 'Online banking: add a user on the Bank tab so someone can log in.');
+    await this.restartWebBank().catch(() => {});
+    this.emit('bank-changed');
+    return this.bankState();
+  }
+
+  addBankUser({ username, name, password }) {
+    const u = String(username || '').trim();
+    if (!/^[A-Za-z0-9._@-]{3,40}$/.test(u)) throw new Error('Usernames are 3–40 letters, digits or . _ @ -');
+    if (String(password || '').length < 6) throw new Error('Passwords need at least 6 characters.');
+    const users = this.data.bank.online.users = (this.data.bank.online.users || []).filter((x) => lc(x.username) !== lc(u));
+    users.push({ username: u, name: String(name || '').trim().slice(0, 60), ...bank.hashPassword(password) });
+    this.store.save();
+    this.emit('bank-changed');
+    return this.bankState();
+  }
+
+  removeBankUser(username) {
+    this.data.bank.online.users = (this.data.bank.online.users || []).filter((x) => lc(x.username) !== lc(username));
+    this.store.save();
+    this.emit('bank-changed');
+    return this.bankState();
+  }
+
+  // A payment out, made in online banking. amount in minor units.
+  makePayment({ payee, sortCode, accountNumber, reference, amount, by }) {
+    const t = {
+      id: crypto.randomUUID(),
+      date: bank.isoDate(this.scenarioNow()),
+      amount: -Math.abs(amount),
+      description: bank.debitDescription(payee, reference, this.year),
+      reference,
+      counterparty: payee,
+      payee,
+      sortCode,
+      accountNumber,
+      by,
+    };
+    this.data.bank.transactions.push(t);
+    this.store.save();
+    this.log('info', `Online banking: ${by} paid ${bank.money(amount, this.data.bank.account.currency)} to ${payee} (${sortCode} ${accountNumber})${reference ? `, reference ${reference}` : ''}.`);
+    this.emit('bank-changed');
+    return t;
   }
 
   // Emails a PDF statement for [from, to] to employees, from the bank.
@@ -1473,6 +1583,7 @@ class Engine extends EventEmitter {
     this.replyTimers.clear();
     this.store.replaceAll(snapshot, opts);
     await this.restartListener().catch(() => {});
+    await this.restartWebBank().catch(() => {});
     this.emit('threads-changed');
     this.emit('outbox-changed');
     this.emit('injects-changed');

@@ -50,6 +50,8 @@ the company's mail server, and it plays the outside world:
 - **Virtual banking:** customers pay the invoices your employees email them, some straight away
   and some after a delay, sometimes with a remittance advice. The company's account keeps a
   running balance, and the bank emails a PDF statement whenever you ask.
+- **Online banking:** an optional website for the bank, served by the app, where trainees log
+  in to view transactions, pay money out and download statements.
 - **Trainee report:** response times, unanswered mail and outcomes per employee, exported as
   HTML or PDF.
 - **Six ready-made templates**, from a law firm to a GP surgery.
@@ -93,7 +95,7 @@ flowchart LR
 | ![Parties tab](docs/images/parties.png) **Parties:** suppliers and contractors you define | ![Activity tab](docs/images/activity.png) **Activity:** live log of everything sent and received |
 | ![Injects tab](docs/images/injects.png) **Injects:** the exercise timeline | ![Outbox tab](docs/images/outbox.png) **Outbox:** review AI emails before they go |
 | ![Report tab](docs/images/report.png) **Report:** how each trainee handled their mail | ![Template picker](docs/images/templates.png) **Templates:** start from a ready-made company |
-| ![Bank tab](docs/images/bank.png) **Bank:** payments from customers, balance and statements | |
+| ![Bank tab](docs/images/bank.png) **Bank:** payments from customers, balance and statements | ![Online banking](docs/images/online-banking.png) **Online banking:** the bank's website for trainees |
 
 ## Quick start
 

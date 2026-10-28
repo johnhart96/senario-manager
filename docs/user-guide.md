@@ -298,11 +298,48 @@ running.
   transaction with a running balance, money in and out, and the closing balance. Dates are in the
   operating year.
 - **Account details** sets the bank's name, the account name, sort code, account number,
-  currency and opening balance.
+  currency, opening balance and arranged overdraft.
 
 Promised payments and the account are kept when you clear the conversation history, and are saved
 in `.senario` files. Switch banking off, or change the timings, under
 [Settings → Banking](configuration.md#banking).
+
+### Online banking
+
+![Online banking](images/online-banking.png)
+
+The app can also run a website for the bank, so trainees can do their banking in a browser
+like the real thing. It's off until you switch it on.
+
+1. On the **Bank** tab, under **Online banking**, tick *Run the online banking website*, check the
+   address and port (`0.0.0.0` and `80` by default), and click **Apply**. The card shows whether
+   it's running and the address to browse to, such as `http://192.168.1.50/`.
+2. Add a user for each trainee who should have access: a name, a username and a password (at
+   least 6 characters). Adding an existing username again sets a new password. Passwords are
+   stored as salted hashes and can't be shown again.
+3. Point trainees' browsers at the address. In a lab with its own DNS, add a record such as
+   `www.northerncountiesbank.local` pointing at this machine.
+
+Once logged in, trainees can:
+
+- **Accounts:** see the balance (and what's available, with an arranged overdraft) and recent
+  transactions.
+- **Transactions:** search by name or reference, filter by date, and page through everything.
+- **Pay & transfer:** pay money out to a payee's name, sort code and account number, with a
+  reference. They check the details, then confirm, and get a confirmation number. Payments
+  can't go beyond the available balance. They appear straight away on the Bank tab, in
+  statements and in the Activity log (who paid what to whom), as `BP <PAYEE> <REFERENCE>` (`FPO`
+  from 2008), dated today in the operating year. Previous payees are suggested.
+- **Statements:** download a PDF statement (the same as the emailed one) or a CSV for any
+  period.
+
+![Checking a payment](images/online-payment.png)
+
+The site is plain HTTP, built for a closed lab: use made-up passwords only. It uses no
+JavaScript, logs users out after 15 minutes of inactivity, and locks out an address for a minute
+after 5 wrong passwords. Logins, failed logins, payments and downloads are recorded in the
+Activity log. Port 80 needs the same permission on Linux as the SMTP listener (see
+[Installation](installation.md#allow-port-25-linux-only)).
 
 ## Report
 

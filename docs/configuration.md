@@ -97,6 +97,15 @@ Changing these settings, or the mail server address, rebinds it immediately.
 Each customer's habit (*Straight away*, *After a delay* or *Either, at random*) is set on the
 Customers tab. The bank account itself is set on the **Bank** tab and saved with the scenario.
 
+### Online banking (Bank tab)
+
+| Setting | Default | Description |
+|---|---|---|
+| Run the online banking website | off | Serves the [online banking](user-guide.md#online-banking) site. Saved with the scenario, so opening a `.senario` file with it on starts the site. |
+| Listen address | `0.0.0.0` | Interface to serve on (`0.0.0.0` = all, `127.0.0.1` = this machine only). |
+| Port | `80` | On Linux, ports below 1024 need [extra setup](installation.md#allow-port-25-linux-only). |
+| Users | none | Name, username and password for each person who may log in. Passwords are stored as salted `scrypt` hashes. |
+
 ## Updates
 
 | Setting | Default | Description |

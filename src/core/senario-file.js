@@ -61,7 +61,8 @@ CREATE TABLE injects (position INTEGER PRIMARY KEY, inject TEXT NOT NULL); -- JS
 CREATE TABLE state (key TEXT PRIMARY KEY, value TEXT NOT NULL);            -- JSON: exercise clock, DKIM keys, bank account
 CREATE TABLE bank_transactions (                                            -- added in 0.6.0
   position INTEGER PRIMARY KEY, id TEXT NOT NULL, date TEXT NOT NULL, amount INTEGER NOT NULL, -- minor units, + in / - out
-  description TEXT, reference TEXT, counterparty TEXT, customer TEXT, invoice TEXT
+  description TEXT, reference TEXT, counterparty TEXT, customer TEXT, invoice TEXT,
+  meta TEXT -- JSON: online payments' { payee, sortCode, accountNumber, by } (0.7.0)
 );
 CREATE TABLE activity_log (id INTEGER PRIMARY KEY, time TEXT NOT NULL, level TEXT NOT NULL, message TEXT NOT NULL);
 CREATE TABLE seen_messages (message_id TEXT PRIMARY KEY, kind TEXT NOT NULL, at INTEGER); -- sent | processed
@@ -146,9 +147,15 @@ function saveSenario(file, data, { includeSecrets = false, appVersion = '' } = {
     state.run('dkimKeys', JSON.stringify(data.dkimKeys || {}));
     const bankData = data.bank || {};
     state.run('bankAccount', JSON.stringify(bankData.account || {}));
-    const tx = db.prepare('INSERT INTO bank_transactions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    (bankData.transactions || []).forEach((t, i) => tx.run(i, t.id, t.date, Math.round(t.amount) || 0, t.description || '',
-      t.reference || null, t.counterparty || null, t.customer || null, t.invoice || null));
+    // Users' passwords are salted hashes; credentials-free saves still keep them, as the site needs them.
+    state.run('bankOnline', JSON.stringify(bankData.online || {}));
+    const tx = db.prepare('INSERT INTO bank_transactions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const TX_META = ['payee', 'sortCode', 'accountNumber', 'by'];
+    (bankData.transactions || []).forEach((t, i) => {
+      const meta = Object.fromEntries(TX_META.filter((k) => t[k] !== undefined).map((k) => [k, t[k]]));
+      tx.run(i, t.id, t.date, Math.round(t.amount) || 0, t.description || '',
+        t.reference || null, t.counterparty || null, t.customer || null, t.invoice || null, Object.keys(meta).length ? JSON.stringify(meta) : null);
+    });
 
     // Jobs keep the time they had left, so a loaded scenario resumes where it was.
     const now = Date.now();
@@ -265,10 +272,11 @@ function loadSenario(file) {
     // Files from before 0.6.0 have no bank: the defaults apply.
     const bankData = {
       account: stateRows.bankAccount || {},
+      online: stateRows.bankOnline || {},
       transactions: hasTable('bank_transactions')
         ? db.prepare('SELECT * FROM bank_transactions ORDER BY position').all().map((t) => Object.fromEntries(Object.entries({
           id: t.id, date: t.date, amount: Number(t.amount), description: t.description, reference: t.reference,
-          counterparty: t.counterparty, customer: t.customer, invoice: t.invoice,
+          counterparty: t.counterparty, customer: t.customer, invoice: t.invoice, ...json(t.meta, {}),
         }).filter(([, v]) => v !== null && v !== undefined)))
         : [],
     };

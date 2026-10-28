@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-28
+
+### Added
+
+- **Online banking:** an optional website for the virtual bank, served by the app (Bank tab →
+  Online banking; port 80 by default). Trainees log in with usernames and passwords you create,
+  view the balance and transactions (search, date filter), pay money out (review, confirm,
+  receipt), and download PDF or CSV statements. Payments land in the account, statements and the
+  Activity log. No JavaScript, CSRF-protected forms, idle timeout and login lockout.
+- **Arranged overdraft** on the bank account (Bank tab → Account details).
+
 ## [0.6.0] - 2026-10-27
 
 ### Added
@@ -132,7 +143,8 @@ First public release.
 - **Installers** for Windows (NSIS, portable), macOS (dmg, zip) and Linux (AppImage, deb, rpm)
   via electron-builder. `.senario` files open in the app when double-clicked.
 
-[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/johnhart96/senario-manager/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/johnhart96/senario-manager/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/johnhart96/senario-manager/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/johnhart96/senario-manager/compare/v0.3.0...v0.4.0

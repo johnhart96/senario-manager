@@ -24,6 +24,9 @@ attachments from email, so these areas matter most:
   server, to recipients outside the company's domains, or to accept SMTP connections from
   addresses other than the mail server.
 - **The SMTP listener:** crashes, resource exhaustion or bypassing its IP and recipient checks.
+- **Online banking:** logging in without a valid password, bypassing the session, CSRF or lockout
+  checks, script injection, or paying more than the available balance. The site is plain HTTP
+  for closed labs: its users should have made-up passwords only.
 - **Attachment parsing:** escaping the worker thread's time and memory limits, or code execution
   through crafted files.
 - **Credentials:** exposure of the OpenAI API key or SMTP password (including through `.senario`
@@ -39,5 +42,6 @@ Manager is affected and needs an update.
 ## Intended deployment
 
 Senario Manager is built for **isolated lab, training and scenario networks**. Run it on such
-networks only. Restrict its SMTP listener to the mail server with a host firewall (see
-[Installation](docs/installation.md#firewall)), and don't expose it to the internet.
+networks only. Restrict its SMTP listener to the mail server, and online banking (if used) to the
+trainees' network, with a host firewall (see [Installation](docs/installation.md#firewall)), and
+don't expose either to the internet.

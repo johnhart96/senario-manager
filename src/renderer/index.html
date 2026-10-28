@@ -438,6 +438,26 @@
         </div>
         <div id="bankTx"></div>
       </div>
+      <div class="card">
+        <h2>Online banking</h2>
+        <p class="muted small">A website for the bank, served by this app, where trainees log in to view transactions, pay money out and download statements.</p>
+        <label class="check"><input type="checkbox" id="webEnabled" /> Run the online banking website</label>
+        <div class="grid3">
+          <div><label>Listen address</label><input id="webBind" placeholder="0.0.0.0" /></div>
+          <div><label>Port</label><input id="webPort" type="number" min="1" max="65535" /></div>
+          <div><label>&nbsp;</label><div class="row tight"><button id="saveWeb" class="primary">Apply</button><button id="openWeb">Open in browser</button></div></div>
+        </div>
+        <div id="webStatus" class="small"></div>
+        <h3 class="sub-h">Users</h3>
+        <div id="webUsers"></div>
+        <div class="grid3 tx-add">
+          <div><label>Name</label><input id="webUserName" placeholder="e.g. Priya Shah" /></div>
+          <div><label>Username</label><input id="webUserLogin" placeholder="e.g. priya" autocomplete="off" /></div>
+          <div class="row tight"><div><label>Password</label><input id="webUserPass" type="password" autocomplete="new-password" /></div>
+            <div><label>&nbsp;</label><button id="addWebUser">Add user</button></div></div>
+        </div>
+        <p class="muted small">Adding a user with an existing username sets a new password. Passwords are stored as hashes, so they can't be shown again.</p>
+      </div>
       <details class="card compose">
         <summary><h2>Account details</h2></summary>
         <div class="grid3">
@@ -449,6 +469,7 @@
           <div></div>
           <div><label>Opening balance</label><input data-bank="openingBalance" type="number" step="0.01" /></div>
           <div><label>Opened on</label><input data-bank="openedOn" type="date" /></div>
+          <div><label>Arranged overdraft</label><input data-bank="overdraftLimit" type="number" step="0.01" min="0" /></div>
         </div>
         <div class="row"><button id="saveBankAccount" class="primary">Save account</button></div>
       </details>
