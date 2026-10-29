@@ -1306,7 +1306,7 @@ class Engine extends EventEmitter {
   // ---------- banking ----------
   //
   // A customer who agrees to pay an invoice queues a 'payment' job:
-  //   { type: 'payment', customer, payment: { reference, amount (minor units), paidOn ('YYYY-MM-DD'), threadId, replyToId } }
+  //   { type: 'payment', customer, payment: { reference, amount (minor units), threadId, replyToId } }
   // (no top-level threadId, so ending or removing the conversation doesn't cancel the money).
 
   promisePayment(customer, thread, incoming, inv) {
@@ -1324,9 +1324,7 @@ class Engine extends EventEmitter {
     const ms = habit === 'prompt'
       ? randBetween(Number(s.payPromptMinMin) || 5, Number(s.payPromptMaxMin) || 60) * 60000
       : randBetween(Number(s.payDelayMinHours) || 4, Number(s.payDelayMaxHours) || 72) * 3600000;
-    // The scenario date they pay on: the pace shortens the wait but not the days that pass.
-    const paidOn = bank.isoDate(this.scenarioNow().getTime() + ms);
-    const job = this.addJob({ type: 'payment', customer: who, payment: { reference, amount, paidOn, threadId: thread.id, replyToId: incoming.messageId } }, ms);
+    const job = this.addJob({ type: 'payment', customer: who, payment: { reference, amount, threadId: thread.id, replyToId: incoming.messageId } }, ms);
     this.log('info', `${customer.name} will pay ${reference || 'the invoice'} (${bank.money(amount, this.data.bank.account.currency)}) in ${fmtWait(job.due - Date.now())}`);
     this.emit('bank-changed');
   }
@@ -1341,11 +1339,11 @@ class Engine extends EventEmitter {
     const cur = this.data.bank.account.currency;
     const payer = customer.organisation || customer.name;
     this.finishJob(job);
-    // "Pay now", or a payment held up while the scenario was stopped, lands today.
-    const today = bank.isoDate(this.scenarioNow());
+    // Dated the day the money arrives, on the scenario calendar (the date in the sidebar and on
+    // emails). Jobs queued by 0.8.0–0.9.0 may carry a future `paidOn`: ignored.
     this.data.bank.transactions.push({
       id: crypto.randomUUID(),
-      date: !now && p.paidOn > today ? p.paidOn : today,
+      date: bank.isoDate(this.scenarioNow()),
       amount: p.amount,
       description: bank.creditDescription(payer, p.reference, this.year),
       reference: p.reference,

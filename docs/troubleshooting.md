@@ -164,6 +164,7 @@ the customer still answers it.
 | Nothing under **Expected payments** after their reply | They didn't accept the invoice: wrong, not theirs, disputed, or not clearly an invoice (quotes aren't paid). Their reply usually says why. Check *Settings → Banking* is on. |
 | *"… has already paid (or will pay) INV-…"* | That invoice reference was already paid or promised by this customer. Use a new reference for a new invoice. |
 | Expected, but never arrives | Payments only arrive while the scenario is running. *After a delay* payers can take days of business time: raise the [pace](user-guide.md#pace) or click **Pay now**. |
+| Payments seem dated on the wrong day | Payments are dated the day they arrive on the scenario calendar, the date in the sidebar. With an [operating year](user-guide.md#operating-year), that keeps the real day of the week, so the day of the month can be a few days off the real one (Wednesday 28 October 2026 is Wednesday 26 October 2005). Entries you add yourself use whatever date you type. |
 | Statement doesn't arrive | It goes through the scenario mail server like any other email, from `statements@<bank>.<customer TLD>`. See [Customer emails don't arrive](#customer-emails-dont-arrive). |
 
 ## Files and saving

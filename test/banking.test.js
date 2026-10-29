@@ -74,7 +74,7 @@ const SLOW = { name: 'Sue Slow', email: 'sue@slow.local', organisation: 'Slow & 
   const t1 = store.data.bank.transactions[0];
   assert.strictEqual(t1.amount, 123450, '"1,234.50" read as £1,234.50');
   assert.strictEqual(t1.description, 'BGC BRIGHT FOODS LTD INV-100', 'pre-2008: bank giro credit');
-  assert.match(t1.date, /^2005-/, 'dated in the operating year');
+  assert.strictEqual(t1.date, engine.bankState().today, 'dated the day it arrives, on the scenario calendar');
   assert.ok(await until(() => captured.some((c) => /Paid today/.test(c.raw.toString()))), 'remittance email');
   const remit = await simpleParser(captured.find((c) => /Paid today/.test(c.raw.toString())).raw);
   assert.strictEqual(remit.subject, 'Re: Invoice INV-100');
@@ -97,10 +97,15 @@ const SLOW = { name: 'Sue Slow', email: 'sue@slow.local', organisation: 'Slow & 
   assert.strictEqual(exp.payer, 'Slow & Co');
   assert.strictEqual(exp.amount, 30000);
   assert.ok(exp.due - Date.now() > 3.9 * 3600000, 'due hours away');
-  await engine.payNow(exp.id);
+  // Even at a fast pace, and for a job saved by 0.8.0–0.9.0 with a future paidOn.
+  store.settings.scenario.pace = 60;
+  store.data.pending.find((j) => j.id === exp.id).payment.paidOn = '2005-12-31';
+  await engine.runPayment(store.data.pending.find((j) => j.id === exp.id));
+  store.settings.scenario.pace = 1;
+  assert.strictEqual(store.data.bank.transactions[store.data.bank.transactions.length - 1].date, engine.bankState().today, 'never dated ahead of today');
   assert.strictEqual(engine.bankState().expected.length, 0);
   assert.strictEqual(engine.bankState().balance, 100000 + 123450 + 30000);
-  console.log('OK 3: delayed payer waits hours; Pay now pays it');
+  console.log('OK 3: delayed payer waits hours; dated today even at 60x or with an old future paidOn');
 
   // 4. Cancelling a promised payment.
   await invoice(SLOW.email, 'INV-300');

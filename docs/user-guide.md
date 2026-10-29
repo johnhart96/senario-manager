@@ -282,7 +282,9 @@ The company has a bank account, and customers pay the invoices your employees se
    - Each customer's habit is set on the [Customers](#customers) tab. *Either, at random* picks
      one per invoice.
 4. When it arrives, it's added to **Transactions** as a credit like `BGC BRIGHT FOODS LTD INV-1042`
-   (`FPI` for Faster Payments from 2008). Sometimes (half the time by default) the customer also
+   (`FPI` for Faster Payments from 2008), dated the day it arrives on the scenario calendar: the
+   date in the sidebar, which can differ from the real day of the month (see
+   [Operating year](#operating-year)). Sometimes (half the time by default) the customer also
    emails to say they've paid, in the invoice's conversation, often with a remittance advice
    attached.
 
@@ -558,7 +560,9 @@ Set **Company → Company operating year** (e.g. `2005`) to run the scenario in 
 
 - **Scenario clock:** real time is shifted back by whole weeks, so weekdays and times of day
   always match the real clock. Tuesday 6 October 2026, 10:30 becomes Tuesday 4 October 2005,
-  10:30. The sidebar shows the current scenario date.
+  10:30. The sidebar shows the current scenario date. The day of the month can therefore differ
+  from the real one by a few days. Emails, bank payments, direct debits and statements all use
+  this calendar, so they always agree with each other and with the sidebar.
 - **Period-correct content:** customers and parties live in that year. Technology (fax,
   landlines, period mobiles), file formats, prices, laws, events and companies must fit it, with
   nothing from later.

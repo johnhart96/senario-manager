@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-29
+
+### Fixed
+
+- Customer payments are always dated the day they arrive on the scenario calendar (the date in
+  the sidebar and on emails). Since 0.8.0, a delayed payment could be dated days ahead of today
+  when the pace was speeded up. Payments already queued are dated when they arrive, too.
+
 ## [0.9.0] - 2026-10-29
 
 ### Added
@@ -160,7 +168,8 @@ First public release.
 - **Installers** for Windows (NSIS, portable), macOS (dmg, zip) and Linux (AppImage, deb, rpm)
   via electron-builder. `.senario` files open in the app when double-clicked.
 
-[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/johnhart96/senario-manager/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/johnhart96/senario-manager/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/johnhart96/senario-manager/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/johnhart96/senario-manager/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/johnhart96/senario-manager/compare/v0.6.0...v0.7.0
