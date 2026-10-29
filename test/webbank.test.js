@@ -126,7 +126,12 @@ const login = (username, password) => req('/login', { method: 'POST', form: { us
   assert.match(r.text, /1 transaction</);
   r = await req(`/transactions?from=${today}&to=${today}`);
   assert.doesNotMatch(r.text, /OLD PAYMENT/);
-  console.log('OK 5: transactions searched and filtered by date');
+  r = await req('/direct-debits');
+  assert.match(r.text, /You have no Direct Debits/);
+  engine.addDirectDebit({ payee: 'British <Telecom>', amount: 84.37, frequency: 'quarterly', startDate: '2006-01-01' });
+  r = await req('/direct-debits');
+  assert.match(r.text, /British &lt;Telecom&gt;.*£84\.37.*Quarterly.*01 Jan 2006/s);
+  console.log('OK 5: transactions searched and filtered by date; Direct Debits listed');
 
   // 6. Statements: CSV (formula-safe) and PDF.
   r = await req(`/statements/download?from=2005-09-01&to=${today}&format=csv`);

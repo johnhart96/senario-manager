@@ -291,6 +291,8 @@ function wire() {
   handle('bank:setOnline', (opts) => engine.setOnlineBanking(opts || {}));
   handle('bank:addUser', (u) => engine.addBankUser(u || {}));
   handle('bank:removeUser', (username) => engine.removeBankUser(username));
+  handle('bank:addDirectDebit', (dd) => engine.addDirectDebit(dd || {}));
+  handle('bank:removeDirectDebit', (id) => engine.removeDirectDebit(id));
   handle('bank:openSite', () => {
     const o = store.data.bank.online;
     const host = o.bindAddress && o.bindAddress !== '0.0.0.0' ? o.bindAddress : '127.0.0.1';
@@ -545,6 +547,7 @@ app.whenReady().then(() => {
   // Start listening for replies straight away; errors are shown in the UI.
   if (store.settings.mail.host) engine.openListener().catch(() => {});
   engine.openWebBank().catch(() => {});
+  engine.collectDirectDebits();
   if (pendingOpen) win.webContents.once('did-finish-load', () => openFromOs(pendingOpen));
   updater.init();
   app.on('activate', () => {

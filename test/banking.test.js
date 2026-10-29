@@ -164,6 +164,44 @@ const SLOW = { name: 'Sue Slow', email: 'sue@slow.local', organisation: 'Slow & 
   fs.rmSync(f);
   console.log('OK 8: bank, promised payments and habits survive .senario and clearing conversations');
 
+  // 9. Direct debits: dates, back-dated catch-up, collection when due, cancelling, persistence.
+  const bankMod = require(ROOT + '/src/core/bank');
+  assert.deepStrictEqual([0, 1, 2, 3].map((n) => bankMod.occurrence('2005-01-31', 'monthly', n)), ['2005-01-31', '2005-02-28', '2005-03-31', '2005-04-30'], 'month ends');
+  assert.strictEqual(bankMod.occurrence('2004-02-29', 'yearly', 1), '2005-02-28');
+  assert.strictEqual(bankMod.occurrence('2005-12-20', 'fortnightly', 1), '2006-01-03');
+  assert.strictEqual(bankMod.occurrence('2005-11-30', 'quarterly', 1), '2006-02-28');
+  const today9 = engine.bankState().today;
+  const [y9, m9, d9] = today9.split('-').map(Number);
+  const threeMonthsAgo = bankMod.isoDate(Date.UTC(y9, m9 - 4, Math.min(d9, 28)));
+  const before9 = engine.bankState().balance;
+  assert.throws(() => engine.addDirectDebit({ payee: '', amount: 5, frequency: 'monthly', startDate: today9 }), /Enter who/);
+  assert.throws(() => engine.addDirectDebit({ payee: 'X', amount: 5, frequency: 'daily', startDate: today9 }), /how often/);
+  engine.addDirectDebit({ payee: 'British Telecom', reference: 'BT-99', amount: '84.37', frequency: 'monthly', startDate: threeMonthsAgo });
+  const bt = store.data.bank.transactions.filter((t) => t.description === 'DD BRITISH TELECOM' && t.directDebit);
+  assert.strictEqual(bt.length, 4, `back-dated: every missed month collected (today ${today9}, start ${threeMonthsAgo}): ${JSON.stringify(bt.map((t) => t.date))}`);
+  assert.ok(bt.every((t) => t.amount === -8437 && t.directDebit));
+  assert.strictEqual(engine.bankState().balance, before9 - bt.length * 8437);
+  engine.addDirectDebit({ payee: 'Unit 4 Landlord', amount: 1250, frequency: 'weekly', startDate: bankMod.occurrence(today9, 'weekly', 1) });
+  let dds = engine.bankState().directDebits;
+  assert.strictEqual(dds.find((d) => d.payee === 'Unit 4 Landlord').collected, 0, 'future: nothing yet');
+  assert.strictEqual(dds.find((d) => d.payee === 'Unit 4 Landlord').nextDate, bankMod.occurrence(today9, 'weekly', 1));
+  // Its date arrives (pretend a week has passed on the scenario calendar).
+  dds = store.data.bank.directDebits;
+  dds.find((d) => d.payee === 'Unit 4 Landlord').startDate = today9;
+  engine.collectDirectDebits();
+  engine.collectDirectDebits();
+  assert.strictEqual(store.data.bank.transactions.filter((t) => t.description === 'DD UNIT 4 LANDLORD').length, 1, 'collected once when due');
+  const f9 = path.join(os.tmpdir(), `dd-${process.pid}.senario`);
+  saveSenario(f9, store.data, { includeSecrets: false, appVersion: 'test' });
+  const back9 = loadSenario(f9).data.bank;
+  assert.deepStrictEqual(back9.directDebits, store.data.bank.directDebits);
+  assert.ok(back9.transactions.filter((t) => t.directDebit).length === bt.length + 1);
+  fs.rmSync(f9);
+  engine.removeDirectDebit(store.data.bank.directDebits[0].id);
+  assert.strictEqual(engine.bankState().directDebits.length, 1);
+  assert.strictEqual(store.data.bank.transactions.filter((t) => t.description === 'DD BRITISH TELECOM' && t.directDebit).length, bt.length, 'cancelling keeps what was taken');
+  console.log(`OK 9: direct debits (month ends, ${bt.length} back-dated collections, due-date collection once, cancel, .senario)`);
+
   await engine.shutdown();
   openai.close();
   sink.close();

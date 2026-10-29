@@ -62,7 +62,7 @@ CREATE TABLE state (key TEXT PRIMARY KEY, value TEXT NOT NULL);            -- JS
 CREATE TABLE bank_transactions (                                            -- added in 0.6.0
   position INTEGER PRIMARY KEY, id TEXT NOT NULL, date TEXT NOT NULL, amount INTEGER NOT NULL, -- minor units, + in / - out
   description TEXT, reference TEXT, counterparty TEXT, customer TEXT, invoice TEXT,
-  meta TEXT -- JSON: online payments' { payee, sortCode, accountNumber, by } (0.7.0)
+  meta TEXT -- JSON extras: online payments' { payee, sortCode, accountNumber, by } (0.7.0), { payee, directDebit } (0.9.0)
 );
 CREATE TABLE activity_log (id INTEGER PRIMARY KEY, time TEXT NOT NULL, level TEXT NOT NULL, message TEXT NOT NULL);
 CREATE TABLE seen_messages (message_id TEXT PRIMARY KEY, kind TEXT NOT NULL, at INTEGER); -- sent | processed
@@ -149,8 +149,9 @@ function saveSenario(file, data, { includeSecrets = false, appVersion = '' } = {
     state.run('bankAccount', JSON.stringify(bankData.account || {}));
     // Users' passwords are salted hashes; credentials-free saves still keep them, as the site needs them.
     state.run('bankOnline', JSON.stringify(bankData.online || {}));
+    state.run('bankDirectDebits', JSON.stringify(bankData.directDebits || []));
     const tx = db.prepare('INSERT INTO bank_transactions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    const TX_META = ['payee', 'sortCode', 'accountNumber', 'by'];
+    const TX_META = ['payee', 'sortCode', 'accountNumber', 'by', 'directDebit'];
     (bankData.transactions || []).forEach((t, i) => {
       const meta = Object.fromEntries(TX_META.filter((k) => t[k] !== undefined).map((k) => [k, t[k]]));
       tx.run(i, t.id, t.date, Math.round(t.amount) || 0, t.description || '',
@@ -273,6 +274,7 @@ function loadSenario(file) {
     const bankData = {
       account: stateRows.bankAccount || {},
       online: stateRows.bankOnline || {},
+      directDebits: Array.isArray(stateRows.bankDirectDebits) ? stateRows.bankDirectDebits : [],
       transactions: hasTable('bank_transactions')
         ? db.prepare('SELECT * FROM bank_transactions ORDER BY position').all().map((t) => Object.fromEntries(Object.entries({
           id: t.id, date: t.date, amount: Number(t.amount), description: t.description, reference: t.reference,

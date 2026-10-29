@@ -67,6 +67,8 @@ contextBridge.exposeInMainWorld('api', {
   setOnlineBanking: (opts) => call('bank:setOnline', opts),
   addBankUser: (u) => call('bank:addUser', u),
   removeBankUser: (username) => call('bank:removeUser', username),
+  addDirectDebit: (dd) => call('bank:addDirectDebit', dd),
+  removeDirectDebit: (id) => call('bank:removeDirectDebit', id),
   openBankSite: () => call('bank:openSite'),
   removeThread: (id) => call('threads:remove', id),
   testOpenAI: () => call('test:openai'),

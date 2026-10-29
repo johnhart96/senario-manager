@@ -304,6 +304,27 @@ Promised payments and the account are kept when you clear the conversation histo
 in `.senario` files. Switch banking off, or change the timings, under
 [Settings → Banking](configuration.md#banking).
 
+### Direct debits
+
+![Direct debits](images/direct-debits.png)
+
+Regular payments out of the account, such as the phone bill, insurance or rent.
+
+- Add one with the **payee**, an optional **reference**, the **amount**, the **frequency**
+  (weekly, fortnightly, monthly, quarterly or yearly) and the date of the **first payment**.
+- On each due date the money goes out as `DD <PAYEE>`, and the collection appears in the
+  transactions, statements, online banking and the Activity log.
+- Dates follow the scenario calendar (the operating year), whether or not the scenario is running,
+  and debits are collected even if that takes the account overdrawn. Collections missed while the
+  app was closed are made when it next opens.
+- A first payment in the past collects every payment since, which is a quick way to give the
+  account some history.
+- Monthly debits keep their day of the month; one on the 31st comes out on the last day of shorter
+  months.
+- **Cancel** stops future payments. Payments already taken stay on the account.
+
+Trainees see the list (but can't change it) under **Direct Debits** in online banking.
+
 ### Online banking
 
 ![Online banking](images/online-banking.png)
@@ -330,6 +351,7 @@ Once logged in, trainees can:
   can't go beyond the available balance. They appear straight away on the Bank tab, in
   statements and in the Activity log (who paid what to whom), as `BP <PAYEE> <REFERENCE>` (`FPO`
   from 2008), dated today in the operating year. Previous payees are suggested.
+- **Direct Debits:** the account's direct debits and when each is next due (read-only).
 - **Statements:** download a PDF statement (the same as the emailed one) or a CSV for any
   period.
 

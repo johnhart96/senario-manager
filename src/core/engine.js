@@ -64,6 +64,9 @@ class Engine extends EventEmitter {
     this.replyTimers = new Map();
     this.listener = null;
     this.listenerError = null;
+    // Direct debits fall due on scenario dates, whether or not the scenario is running.
+    this.ddTimer = setInterval(() => this.collectDirectDebits(), 60000);
+    this.ddTimer.unref();
   }
 
   // ---------- helpers ----------
@@ -293,6 +296,7 @@ class Engine extends EventEmitter {
   }
 
   async shutdown() {
+    clearInterval(this.ddTimer);
     await this.stop();
     await this.closeListener();
     await this.closeWebBank();
@@ -1389,6 +1393,7 @@ class Engine extends EventEmitter {
     return {
       account, transactions: rows.reverse(), balance, available: balance + (Number(account.overdraftLimit) || 0), expected,
       today: bank.isoDate(this.scenarioNow()), running: this.running, companyName: this.company.name,
+      directDebits: (this.data.bank.directDebits || []).map((d) => ({ ...d, nextDate: bank.nextCollection(d), frequencyLabel: bank.FREQUENCIES[d.frequency].label })),
       online: { enabled: !!online.enabled, bindAddress: online.bindAddress, port: online.port,
         users: (online.users || []).map((u) => ({ username: u.username, name: u.name })), ...this.webBankStatus() },
     };
@@ -1440,6 +1445,58 @@ class Engine extends EventEmitter {
     this.emit('bank-changed');
     this.emitStatus();
     return this.bankState();
+  }
+
+  // ---------- direct debits ----------
+
+  addDirectDebit({ payee, reference, amount, frequency, startDate }) {
+    const name = String(payee || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+    const minor = Math.abs(bank.toMinor(amount));
+    if (!name) throw new Error('Enter who the direct debit is paid to.');
+    if (!(minor > 0)) throw new Error('Enter the amount that comes out each time.');
+    if (!bank.FREQUENCIES[frequency]) throw new Error('Choose how often it comes out.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(startDate)) || Number.isNaN(Date.parse(startDate))) throw new Error('Choose the date of the first payment.');
+    const dd = { id: crypto.randomUUID(), payee: name, reference: String(reference || '').trim().slice(0, 18), amount: minor, frequency, startDate, collected: 0 };
+    (this.data.bank.directDebits = this.data.bank.directDebits || []).push(dd);
+    this.log('info', `Direct debit set up: ${bank.money(minor, this.data.bank.account.currency)} ${bank.FREQUENCIES[frequency].label.toLowerCase()} to ${name}, first on ${startDate}.`);
+    this.store.save();
+    this.collectDirectDebits();
+    this.emit('bank-changed');
+    return this.bankState();
+  }
+
+  // Cancelling stops future collections; what was already collected stays on the account.
+  removeDirectDebit(id) {
+    const dd = (this.data.bank.directDebits || []).find((d) => d.id === id);
+    this.data.bank.directDebits = (this.data.bank.directDebits || []).filter((d) => d.id !== id);
+    if (dd) this.log('info', `Direct debit to ${dd.payee} cancelled.`);
+    this.store.save();
+    this.emit('bank-changed');
+    return this.bankState();
+  }
+
+  // Takes every collection due up to today (scenario date), including any missed while the
+  // app was closed or before a back-dated start.
+  collectDirectDebits() {
+    const today = bank.isoDate(this.scenarioNow());
+    const cur = this.data.bank.account.currency;
+    let any = false;
+    for (const dd of this.data.bank.directDebits || []) {
+      for (let guard = 0; guard < 520 && bank.nextCollection(dd) <= today; guard++) {
+        const date = bank.nextCollection(dd);
+        this.data.bank.transactions.push({
+          id: crypto.randomUUID(), date, amount: -dd.amount, description: bank.ddDescription(dd.payee),
+          reference: dd.reference || undefined, counterparty: dd.payee, payee: dd.payee, directDebit: dd.id,
+        });
+        dd.collected = (dd.collected || 0) + 1;
+        any = true;
+        this.log('info', `Direct debit: ${bank.money(dd.amount, cur)} to ${dd.payee} (${date}).`);
+      }
+    }
+    if (any) {
+      this.store.save();
+      this.emit('bank-changed');
+    }
   }
 
   // ---------- online banking (core/webbank.js) ----------
@@ -1588,6 +1645,7 @@ class Engine extends EventEmitter {
     this.store.replaceAll(snapshot, opts);
     await this.restartListener().catch(() => {});
     await this.restartWebBank().catch(() => {});
+    this.collectDirectDebits();
     this.emit('threads-changed');
     this.emit('outbox-changed');
     this.emit('injects-changed');

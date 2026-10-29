@@ -42,6 +42,13 @@ async function loadBank() {
   if (!$('#stmtFrom').value) $('#stmtFrom').value = `${b.today.slice(0, 8)}01`;
   if (!$('#stmtUntil').value) $('#stmtUntil').value = b.today;
   if (!$('#txDate').value) $('#txDate').value = b.today;
+  if (!$('#ddStart').value) $('#ddStart').value = b.today;
+  $('#bankDd').innerHTML = b.directDebits.length
+    ? `<table class="rtable"><thead><tr><th>Payee</th><th>Reference</th><th class="n">Amount</th><th>Frequency</th><th>Next payment</th><th class="n">Paid so far</th><th></th></tr></thead><tbody>${b.directDebits.map((d) => `<tr>
+        <td>${esc(d.payee)}</td><td>${esc(d.reference || '–')}</td><td class="n">${fmtMoney(d.amount)}</td><td>${esc(d.frequencyLabel)}</td>
+        <td>${fmtDay(d.nextDate)}</td><td class="n">${d.collected}</td>
+        <td class="n"><button class="link danger" data-dd-remove="${esc(d.id)}">Cancel</button></td></tr>`).join('')}</tbody></table>`
+    : '<p class="muted small">No direct debits.</p>';
 
   // Online banking.
   const o = b.online;
@@ -94,6 +101,17 @@ $('#addTx').addEventListener('click', (e) =>
   })
 );
 
+$('#addDd').addEventListener('click', (e) =>
+  busy(e.target, async () => {
+    await window.api.addDirectDebit({ payee: $('#ddPayee').value, reference: $('#ddRef').value, amount: $('#ddAmount').value, frequency: $('#ddFreq').value, startDate: $('#ddStart').value });
+    $('#ddPayee').value = '';
+    $('#ddRef').value = '';
+    $('#ddAmount').value = '';
+    await loadBank();
+    toast('Direct debit set up');
+  })
+);
+
 $('#sendStatement').addEventListener('click', (e) =>
   busy(e.target, async () => {
     await window.api.sendStatement({ to: [$('#stmtTo').value], from: $('#stmtFrom').value, until: $('#stmtUntil').value });
@@ -132,6 +150,10 @@ $('#tab-bank').addEventListener('click', (e) => {
   const now = e.target.closest('[data-pay-now]');
   const cancel = e.target.closest('[data-pay-cancel]');
   const remove = e.target.closest('[data-tx-remove]');
+  const ddRemove = e.target.closest('[data-dd-remove]');
+  if (ddRemove && confirm('Cancel this direct debit? Payments already taken stay on the account.')) {
+    busy(ddRemove, async () => { await window.api.removeDirectDebit(ddRemove.dataset.ddRemove); await loadBank(); });
+  }
   if (now) busy(now, async () => { await window.api.payNow(now.dataset.payNow); await loadBank(); });
   if (cancel && confirm('Cancel this payment? The customer will not pay this invoice.')) busy(cancel, async () => { await window.api.cancelPayment(cancel.dataset.payCancel); await loadBank(); });
   if (remove && confirm('Remove this transaction from the account?')) busy(remove, async () => { await window.api.removeTransaction(remove.dataset.txRemove); await loadBank(); });

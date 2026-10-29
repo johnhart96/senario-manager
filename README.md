@@ -49,7 +49,8 @@ the company's mail server, and it plays the outside world:
   customer.
 - **Virtual banking:** customers pay the invoices your employees email them, some straight away
   and some after a delay, sometimes with a remittance advice. The company's account keeps a
-  running balance, and the bank emails a PDF statement whenever you ask.
+  running balance, direct debits go out on their due dates, and the bank emails a PDF statement
+  whenever you ask.
 - **Online banking:** an optional website for the bank, served by the app, where trainees log
   in to view transactions, pay money out and download statements.
 - **Trainee report:** response times, unanswered mail and outcomes per employee, exported as

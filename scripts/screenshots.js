@@ -107,6 +107,11 @@ const seed = {
       { id: 'b5', date: '2005-10-14', amount: -942000, description: 'BACS SALARIES OCT' },
       { id: 'b6', date: '2005-10-21', amount: 305265, description: 'BGC RIVERSIDE THEATRE INV-2196', customer: customers[0].email, invoice: 'INV-2196' },
     ],
+    directDebits: [
+      { id: 'dd1', payee: 'British Telecom', reference: '0161 496 0300', amount: 8437, frequency: 'monthly', startDate: '2005-05-04', collected: 6 },
+      { id: 'dd2', payee: 'Hiscox Insurance', reference: 'POL 77812', amount: 34210, frequency: 'quarterly', startDate: '2005-08-15', collected: 1 },
+      { id: 'dd3', payee: 'North West Water', amount: 6200, frequency: 'monthly', startDate: '2005-05-28', collected: 5 },
+    ],
     online: { enabled: true, bindAddress: '127.0.0.1', port: WEB_PORT, users: [{ username: 'priya', name: 'Priya Shah', ...hashPassword('demo-password') }] },
   },
   pending: [
@@ -144,6 +149,7 @@ const SHOTS = [
   ['injects', `document.querySelector('[data-tab=injects]').click()`, `document.querySelectorAll('#injects .inject')[2].open = true`],
   ['outbox', `document.querySelector('[data-tab=outbox]').click()`],
   ['bank', `document.querySelector('[data-tab=bank]').click()`],
+  ['direct-debits', `document.querySelector('#bankDd').closest('.card').scrollIntoView({ block: 'start' })`],
   ['report', `document.querySelector('[data-tab=report]').click()`],
   ['templates', `document.querySelector('[data-tab=company]').click(); document.querySelector('#newScenario').click()`],
   ['updates', `document.querySelector('#closeModal').click(); document.querySelector('[data-tab=settings]').click()`, `document.querySelector('#updatesCard').scrollIntoView({ block: 'center' })`],

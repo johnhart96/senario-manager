@@ -193,6 +193,7 @@ class WebBank {
     if (path === '/pay') return req.method === 'POST' ? this.payReview(res, s, body) : this.payForm(res, s, {});
     if (path === '/pay/confirm' && req.method === 'POST') return this.payConfirm(res, s, body);
     if (path === '/statements') return this.statementsPage(res, s, url);
+    if (path === '/direct-debits') return this.directDebits(res, s);
     if (path === '/statements/download') return this.download(res, s, url);
     return this.send(res, 404, this.page(s, 'Not found', '<div class="panel">That page doesn\'t exist. <a href="/accounts">Back to your accounts</a></div>'));
   }
@@ -203,7 +204,7 @@ class WebBank {
     const st = this.api.state();
     const name = esc(st.account.bankName);
     const link = (href, label) => `<a href="${href}"${active === href ? ' class="on"' : ''}>${label}</a>`;
-    const navHtml = s ? `<nav>${link('/accounts', 'Accounts')}${link('/transactions', 'Transactions')}${link('/pay', 'Pay &amp; transfer')}${link('/statements', 'Statements')}</nav>
+    const navHtml = s ? `<nav>${link('/accounts', 'Accounts')}${link('/transactions', 'Transactions')}${link('/pay', 'Pay &amp; transfer')}${link('/direct-debits', 'Direct Debits')}${link('/statements', 'Statements')}</nav>
       <form method="post" action="/logout"><input type="hidden" name="csrf" value="${esc(s.csrf)}"><button>Log out</button></form>` : '';
     return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)} - ${name} Online Banking</title><link rel="stylesheet" href="/style.css"></head>
@@ -354,6 +355,15 @@ class WebBank {
       <div class="panel"><dl><dt>Confirmation number</dt><dd>${esc(t.id.slice(0, 8).toUpperCase())}</dd><dt>Date</dt><dd>${esc(fmtDay(t.date))}</dd>
         <dt>Shows on your statement as</dt><dd>${esc(t.description)}</dd><dt>New balance</dt><dd>${this.money(this.api.state().balance)}</dd></dl>
         <div class="actions"><a class="btn" href="/accounts">Back to accounts</a><a class="btn alt" href="/pay">Make another payment</a></div></div>`, '/pay'));
+  }
+
+  directDebits(res, s) {
+    const dds = this.api.state().directDebits || [];
+    this.send(res, 200, this.page(s, 'Direct Debits', `<h1>Direct Debits</h1>
+      <div class="panel">${dds.length ? `<table><thead><tr><th>Paid to</th><th>Reference</th><th class="n">Last amount</th><th>How often</th><th>Next payment</th></tr></thead><tbody>${dds.map((d) => `<tr>
+        <td>${esc(d.payee)}</td><td>${esc(d.reference || '')}</td><td class="n">${this.money(d.amount)}</td><td>${esc(d.frequencyLabel)}</td><td>${esc(fmtDay(d.nextDate))}</td></tr>`).join('')}</tbody></table>`
+        : '<p class="muted">You have no Direct Debits on this account.</p>'}
+        <p class="muted small">To cancel a Direct Debit, please contact us.</p></div>`, '/direct-debits'));
   }
 
   statementsPage(res, s, url, error) {

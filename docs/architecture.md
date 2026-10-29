@@ -143,6 +143,15 @@ thread as a resolving reply. `sendStatement()` submits a `statement` draft from 
 sender. `sendDraft()` renders `bank.statement()` as its PDF attachment, and the thread is marked
 background.
 
+### Direct debits
+
+`data.bank.directDebits` holds `{ startDate, frequency, collected, … }`. The next collection is
+`bank.occurrence(startDate, frequency, collected)`, computed from the start each time so monthly
+debits keep their day (clamped to the month's end) and never drift. `collectDirectDebits()` takes
+every collection due up to `scenarioNow()`, catching up on missed ones, and runs on a 60 s
+interval (unref'd, independent of the scenario running), at start-up, when one is added and when
+a scenario is loaded.
+
 ### Online banking
 
 `WebBank` (`src/core/webbank.js`) is a `node:http` server the engine starts like the reply
@@ -269,7 +278,7 @@ Changes must keep these true. The tests check them.
 | `html-email.test.js` | HTML composition: escaping, lists, era fonts, both quoting styles, multipart/alternative over SMTP, plain-text mode |
 | `attachments.test.js` | Every supported format, plus corrupt and unsupported files and inline logos |
 | `webbank.test.js` | Online banking over HTTP: login, sessions, CSRF, payments (review → confirm, once), validation, overdraft, escaping, search, CSV/PDF statements, logout, lockout, port clashes, persistence |
-| `banking.test.js` | Invoices paid straight away and after a delay, remittance emails, duplicates, Pay now / Cancel, manual transactions, the emailed PDF statement, banking off, persistence |
+| `banking.test.js` | Invoices paid straight away and after a delay, remittance emails, duplicates, Pay now / Cancel, manual transactions, the emailed PDF statement, banking off, persistence, direct debits (dates, catch-up, cancel) |
 | `forms.test.js` | Finding and filling the blanks in PDF, Word (cells, lines, content controls) and Excel (`.xlsx`, `.xls`) forms |
 | `senario-file.test.js` | Save/load round trip, credentials, overwrite, invalid files |
 

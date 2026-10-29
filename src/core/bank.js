@@ -68,6 +68,34 @@ function debitDescription(payee, reference, year) {
   return `${code} ${String(payee || '').toUpperCase().slice(0, 30)}${reference ? ` ${String(reference).toUpperCase().slice(0, 18)}` : ''}`.trim();
 }
 
+// ---------- direct debits ----------
+//
+// data.bank.directDebits = [{ id, payee, reference, amount (minor), frequency, startDate, collected }]
+// The n-th collection is worked out from the start date, so monthly debits keep their day
+// of the month (the 31st falls back to the last day of shorter months) and never drift.
+
+const FREQUENCIES = {
+  weekly: { days: 7, label: 'Weekly' },
+  fortnightly: { days: 14, label: 'Fortnightly' },
+  monthly: { months: 1, label: 'Monthly' },
+  quarterly: { months: 3, label: 'Quarterly' },
+  yearly: { months: 12, label: 'Yearly' },
+};
+
+function occurrence(startDate, frequency, n) {
+  const f = FREQUENCIES[frequency] || FREQUENCIES.monthly;
+  const [y, m, d] = startDate.split('-').map(Number);
+  if (f.days) return isoDate(Date.UTC(y, m - 1, d + f.days * n));
+  const months = m - 1 + f.months * n;
+  const lastDay = new Date(Date.UTC(y, months + 1, 0)).getUTCDate();
+  return isoDate(Date.UTC(y, months, Math.min(d, lastDay)));
+}
+
+const nextCollection = (dd) => occurrence(dd.startDate, dd.frequency, dd.collected || 0);
+
+// "DD BRITISH TELECOM": how a direct debit shows on a statement.
+const ddDescription = (payee) => `DD ${String(payee || '').toUpperCase().slice(0, 34)}`.trim();
+
 function hashPassword(password, salt = require('crypto').randomBytes(16).toString('hex')) {
   return { salt, hash: require('crypto').scryptSync(String(password), salt, 32).toString('hex') };
 }
@@ -182,4 +210,7 @@ async function statement(bank, { from, to, companyName, now }) {
   };
 }
 
-module.exports = { DEFAULT_ACCOUNT, DEFAULT_ONLINE, money, toMinor, digits, ledger, creditDescription, debitDescription, hashPassword, checkPassword, statement, isoDate };
+module.exports = {
+  DEFAULT_ACCOUNT, DEFAULT_ONLINE, FREQUENCIES, money, toMinor, digits, ledger, creditDescription, debitDescription, ddDescription,
+  occurrence, nextCollection, hashPassword, checkPassword, statement, isoDate,
+};
